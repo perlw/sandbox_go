@@ -141,7 +141,7 @@ func main() {
 		projectionUniform := gl.GetUniformLocation(program, gl.Str("pMatrix\x00"))
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
 
-		model := mgl32.Ident4()
+		model := mgl32.Translate3D(-10.0, -10.0, -10.0)
 		modelUniform := gl.GetUniformLocation(program, gl.Str("mvMatrix\x00"))
 		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 	}
@@ -153,39 +153,32 @@ func main() {
 	gl.BindVertexArray(vao)
 
 	var verts = []float32{}
-	var indices = []byte{}
+	var colors = []float32{}
+	var indices = []int32{}
 	{
-		for y := 0; y < 3; y++ {
-			for x := 0; x < 3; x++ {
+		width := 100
+		height := 100
+		for y := 0; y < height+1; y++ {
+			for x := 0; x < width+1; x++ {
 				fx := float32(x)
 				fy := float32(y)
 				verts = append(verts, []float32{
 					fx, fy, -20.0,
 				}...)
-				/*
-					verts = append(verts, []float32{
-						fx, fy, -20.0,
-						fx2, fy, -20.0,
-						fx, fy2, -20.0,
-						fx2, fy2, -20.0,
-					}...)
-					indices = append(indices, []byte{
-						0, 3, 2,
-						0, 1, 3,
-					}...)
-				*/
+				shade := float32(x^y) / 40.0
+				colors = append(colors, []float32{
+					shade, shade, shade,
+				}...)
 			}
-			// 0,0 1,0 0,1 1,1
-			//  1       3   2
-			//  1   2       3
 		}
-		for y := 0; y < 2; y++ {
-			for x := 0; x < 2; x++ {
-				bl := byte((3 * y) + x)
-				br := byte(bl + 1)
-				tl := byte((3 * (y + 1)) + x)
-				tr := byte(tl + 1)
-				indices = append(indices, []byte{
+
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				bl := int32(((width + 1) * y) + x)
+				br := bl + 1
+				tl := int32(((width + 1) * (y + 1)) + x)
+				tr := tl + 1
+				indices = append(indices, []int32{
 					bl, tr, tl,
 					bl, br, tr,
 				}...)
@@ -200,14 +193,23 @@ func main() {
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 		gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, gl.Ptr(verts), gl.STATIC_DRAW)
 
-		var vbo2 uint32
-		gl.GenBuffers(1, &vbo2)
-		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
-
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
 		gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+
+		var vbo2 uint32
+		gl.GenBuffers(1, &vbo2)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, vbo2)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
+
+		var vbo3 uint32
+		gl.GenBuffers(1, &vbo3)
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo3)
+		gl.BufferData(gl.ARRAY_BUFFER, len(colors)*4, gl.Ptr(colors), gl.STATIC_DRAW)
+
+		colorAttrib := uint32(gl.GetAttribLocation(program, gl.Str("color\x00")))
+		gl.EnableVertexAttribArray(colorAttrib)
+		gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 	// -Setup geom
 
@@ -217,7 +219,7 @@ func main() {
 		// +Draw geom
 		gl.BindVertexArray(vao)
 		//gl.DrawArrays(gl.LINES, 0, 6)
-		gl.DrawElements(gl.LINES, int32(len(indices)), gl.UNSIGNED_BYTE, gl.PtrOffset(0))
+		gl.DrawElements(gl.TRIANGLES, int32(len(indices)), gl.UNSIGNED_INT, gl.PtrOffset(0))
 		// -Draw geom
 
 		window.SwapBuffers()
