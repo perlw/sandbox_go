@@ -136,7 +136,7 @@ func main() {
 	gl.UseProgram(program)
 
 	{
-		projection := mgl32.Perspective(mgl32.DegToRad(45.0), 640.0/480.0, 0.1, 10.0)
+		projection := mgl32.Perspective(mgl32.DegToRad(45.0), 640.0/480.0, 1.0, 100.0)
 		fmt.Printf("%v\n", projection)
 		projectionUniform := gl.GetUniformLocation(program, gl.Str("pMatrix\x00"))
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
@@ -152,21 +152,58 @@ func main() {
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
+	var verts = []float32{}
+	var indices = []byte{}
 	{
-		var verts = []float32{
-			0.0, 0.0, -1.0,
-			1.0, 1.0, -1.0,
-			0.0, 1.0, -1.0,
-
-			0.0, 0.0, -1.0,
-			1.0, 0.0, -1.0,
-			1.0, 1.0, -1.0,
+		for y := 0; y < 3; y++ {
+			for x := 0; x < 3; x++ {
+				fx := float32(x)
+				fy := float32(y)
+				verts = append(verts, []float32{
+					fx, fy, -20.0,
+				}...)
+				/*
+					verts = append(verts, []float32{
+						fx, fy, -20.0,
+						fx2, fy, -20.0,
+						fx, fy2, -20.0,
+						fx2, fy2, -20.0,
+					}...)
+					indices = append(indices, []byte{
+						0, 3, 2,
+						0, 1, 3,
+					}...)
+				*/
+			}
+			// 0,0 1,0 0,1 1,1
+			//  1       3   2
+			//  1   2       3
 		}
+		for y := 0; y < 2; y++ {
+			for x := 0; x < 2; x++ {
+				bl := byte((3 * y) + x)
+				br := byte(bl + 1)
+				tl := byte((3 * (y + 1)) + x)
+				tr := byte(tl + 1)
+				indices = append(indices, []byte{
+					bl, tr, tl,
+					bl, br, tr,
+				}...)
+			}
+		}
+
+		fmt.Printf("%v\n", verts)
+		fmt.Printf("%v\n", indices)
 
 		var vbo uint32
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 		gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, gl.Ptr(verts), gl.STATIC_DRAW)
+
+		var vbo2 uint32
+		gl.GenBuffers(1, &vbo2)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, vbo2)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices), gl.Ptr(indices), gl.STATIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
@@ -179,7 +216,8 @@ func main() {
 
 		// +Draw geom
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, 6)
+		//gl.DrawArrays(gl.LINES, 0, 6)
+		gl.DrawElements(gl.LINES, int32(len(indices)), gl.UNSIGNED_BYTE, gl.PtrOffset(0))
 		// -Draw geom
 
 		window.SwapBuffers()
