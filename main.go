@@ -128,6 +128,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	vertSource[len(vertSource)-1] = 0
+	fragSource[len(fragSource)-1] = 0
 	program, err := newProgram(string(vertSource), string(fragSource))
 	if err != nil {
 		panic(err)
@@ -141,7 +143,7 @@ func main() {
 		projectionUniform := gl.GetUniformLocation(program, gl.Str("pMatrix\x00"))
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
 
-		model := mgl32.Translate3D(-10.0, -10.0, -10.0)
+		model := mgl32.Translate3D(-10.0, -10.0, -10.0).Mul4(mgl32.HomogRotate3D(0.75, mgl32.Vec3{0.0, 1.0, 0.0}))
 		modelUniform := gl.GetUniformLocation(program, gl.Str("mvMatrix\x00"))
 		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 	}
@@ -156,18 +158,17 @@ func main() {
 	var colors = []float32{}
 	var indices = []int32{}
 	{
-		width := 100
-		height := 100
+		width := 40
+		height := 20
 		for y := 0; y < height+1; y++ {
 			for x := 0; x < width+1; x++ {
 				fx := float32(x)
 				fy := float32(y)
 				verts = append(verts, []float32{
-					fx, fy, -20.0,
+					fx, fy, 0.0,
 				}...)
-				shade := float32(x^y) / 40.0
 				colors = append(colors, []float32{
-					shade, shade, shade,
+					float32(x) / float32(width), float32(y) / float32(height), 0.0,
 				}...)
 			}
 		}
@@ -213,12 +214,14 @@ func main() {
 	}
 	// -Setup geom
 
+	timeUniform := gl.GetUniformLocation(program, gl.Str("time\x00"))
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+		gl.Uniform1f(timeUniform, float32(glfw.GetTime()))
+
 		// +Draw geom
 		gl.BindVertexArray(vao)
-		//gl.DrawArrays(gl.LINES, 0, 6)
 		gl.DrawElements(gl.TRIANGLES, int32(len(indices)), gl.UNSIGNED_INT, gl.PtrOffset(0))
 		// -Draw geom
 
