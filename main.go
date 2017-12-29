@@ -6,6 +6,7 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"io/ioutil"
+	"math"
 	"runtime"
 	"strings"
 )
@@ -155,9 +156,10 @@ func main() {
 	gl.BindVertexArray(vao)
 
 	var verts = []float32{}
+	var vbo uint32
+	width := 16
+	height := 24
 	{
-		width := 16
-		height := 24
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
 				var ox float32
@@ -247,10 +249,9 @@ func main() {
 		}
 		//fmt.Printf("%v\n", verts)
 
-		var vbo uint32
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, gl.Ptr(verts), gl.STATIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, gl.Ptr(verts), gl.DYNAMIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
@@ -258,18 +259,61 @@ func main() {
 	}
 	// -Setup geom
 
+	fmt.Printf("Polys: %d | Vertices: %d\n", len(verts)/3, len(verts))
+
+	var tick float64 = 0.0
+	var frames uint32 = 0
+	var tmpVerts = make([]float32, len(verts))
+	copy(tmpVerts, verts)
 	timeUniform := gl.GetUniformLocation(program, gl.Str("time\x00"))
 	for !window.ShouldClose() {
+		time := glfw.GetTime()
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		gl.Uniform1f(timeUniform, float32(glfw.GetTime()))
+		gl.Uniform1f(timeUniform, float32(time))
 
 		// +Draw geom
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(verts)))
+
+		// +Update
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				i := ((y * width) + x) * 84
+
+				targetHeight := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.25)
+				tmpVerts[i+1] = targetHeight
+				tmpVerts[i+5] = targetHeight
+				tmpVerts[i+9] = targetHeight
+
+				for t := 0; t < 6; t++ {
+					i += 12
+					if verts[i+1] > 0.0 {
+						tmpVerts[i+1] = targetHeight
+					}
+					if verts[i+5] > 0.0 {
+						tmpVerts[i+5] = targetHeight
+					}
+					if verts[i+9] > 0.0 {
+						tmpVerts[i+9] = targetHeight
+					}
+				}
+			}
+		}
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+		gl.BufferData(gl.ARRAY_BUFFER, len(tmpVerts)*4, gl.Ptr(tmpVerts), gl.DYNAMIC_DRAW)
+		// -Update
+
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(tmpVerts)))
 		// -Draw geom
 
 		window.SwapBuffers()
 		glfw.PollEvents()
+
+		frames++
+		if time-tick >= 1.0 {
+			fmt.Printf("FPS: %d\n", frames)
+			frames = 0
+			tick = time
+		}
 	}
 }
