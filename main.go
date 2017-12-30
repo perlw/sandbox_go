@@ -156,6 +156,7 @@ func main() {
 	gl.BindVertexArray(vao)
 
 	var verts = []float32{}
+	var normals = []float32{}
 	var vbo uint32
 	width := 16
 	height := 24
@@ -204,6 +205,43 @@ func main() {
 						ox - 0.5, 2.0, oy - 0.5, 0.0,
 						// -Back
 					}...)
+
+					normals = append(normals, []float32{
+						// Cap
+						0.0, 1.0, 0.0,
+						0.0, 1.0, 0.0,
+						0.0, 1.0, 0.0,
+
+						// +Front right
+						0.5, 0.0, 0.5,
+						0.5, 0.0, 0.5,
+						0.5, 0.0, 0.5,
+
+						0.5, 0.0, 0.5,
+						0.5, 0.0, 0.5,
+						0.5, 0.0, 0.5,
+						// -Front right
+
+						// +Front left
+						-0.5, 0.0, 0.5,
+						-0.5, 0.0, 0.5,
+						-0.5, 0.0, 0.5,
+
+						-0.5, 0.0, 0.5,
+						-0.5, 0.0, 0.5,
+						-0.5, 0.0, 0.5,
+						// -Front left
+
+						// +Back
+						0.0, 0.0, -1.0,
+						0.0, 0.0, -1.0,
+						0.0, 0.0, -1.0,
+
+						0.0, 0.0, -1.0,
+						0.0, 0.0, -1.0,
+						0.0, 0.0, -1.0,
+						// -Back
+					}...)
 				} else {
 					ox = (float32(x) + 0.5) * 1.1
 					oy = -((float32(y) / 2.0) - 0.5) * 1.1
@@ -244,6 +282,42 @@ func main() {
 						ox + 0.5, 2.0, oy + 0.5, 0.0,
 						// -Back
 					}...)
+					normals = append(normals, []float32{
+						// Cap
+						0.0, 1.0, 0.0,
+						0.0, 1.0, 0.0,
+						0.0, 1.0, 0.0,
+
+						// +Front right
+						0.5, 0.0, -0.5,
+						0.5, 0.0, -0.5,
+						0.5, 0.0, -0.5,
+
+						0.5, 0.0, -0.5,
+						0.5, 0.0, -0.5,
+						0.5, 0.0, -0.5,
+						// -Front right
+
+						// +Front left
+						-0.5, 0.0, -0.5,
+						-0.5, 0.0, -0.5,
+						-0.5, 0.0, -0.5,
+
+						-0.5, 0.0, -0.5,
+						-0.5, 0.0, -0.5,
+						-0.5, 0.0, -0.5,
+						// -Front left
+
+						// +Back
+						0.0, 0.0, 1.0,
+						0.0, 0.0, 1.0,
+						0.0, 0.0, 1.0,
+
+						0.0, 0.0, 1.0,
+						0.0, 0.0, 1.0,
+						0.0, 0.0, 1.0,
+						// -Back
+					}...)
 				}
 			}
 		}
@@ -256,6 +330,15 @@ func main() {
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
 		gl.VertexAttribPointer(vertAttrib, 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
+
+		var vbo2 uint32
+		gl.GenBuffers(1, &vbo2)
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
+		gl.BufferData(gl.ARRAY_BUFFER, len(normals)*4, gl.Ptr(normals), gl.STATIC_DRAW)
+
+		normalAttrib := uint32(gl.GetAttribLocation(program, gl.Str("normal\x00")))
+		gl.EnableVertexAttribArray(normalAttrib)
+		gl.VertexAttribPointer(normalAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 	// -Setup geom
 
