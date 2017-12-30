@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec4 vertex;
+in vec3 vertex;
 in vec3 normal;
 
 uniform mat4 mvMatrix;

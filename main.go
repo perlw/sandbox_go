@@ -73,17 +73,10 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-func normal(x1, y1, z1, x2, y2, z2, x3, y3, z3 float32) (x, y, z float32) {
-	ux := x2 - x1
-	uy := y2 - y1
-	uz := z2 - z1
-	vx := x3 - x1
-	vy := y3 - y1
-	vz := z3 - z1
-	rx := uy*vz - uz*vy
-	ry := uz*vx - ux*vz
-	rz := ux*vy - uy*vx
-	return rx, ry, rz
+func normal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
+	u := p2.Sub(p1)
+	v := p3.Sub(p1)
+	return u.Cross(v)
 }
 
 func main() {
@@ -172,8 +165,8 @@ func main() {
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
-	var verts = []float32{}
-	var normals = []float32{}
+	var verts = []mgl32.Vec3{}
+	var normals = []mgl32.Vec3{}
 	var vbo uint32
 	var vbo2 uint32
 	width := 16
@@ -187,153 +180,153 @@ func main() {
 					ox = float32(x) * 1.1
 					oy = -(float32(y) / 2.0) * 1.1
 
-					verts = append(verts, []float32{
+					verts = append(verts, []mgl32.Vec3{
 						// Cap
-						ox + 0.0, 2.0, oy + 0.5, 1.0,
-						ox + 0.5, 2.0, oy - 0.5, 1.0,
-						ox - 0.5, 2.0, oy - 0.5, 1.0,
+						{ox + 0.0, 2.0, oy + 0.5},
+						{ox + 0.5, 2.0, oy - 0.5},
+						{ox - 0.5, 2.0, oy - 0.5},
 
 						// +Front right
-						ox + 0.0, 0.0, oy + 0.5, 0.0,
-						ox + 0.5, 2.0, oy - 0.5, 0.0,
-						ox + 0.0, 2.0, oy + 0.5, 0.0,
+						{ox + 0.0, 0.0, oy + 0.5},
+						{ox + 0.5, 2.0, oy - 0.5},
+						{ox + 0.0, 2.0, oy + 0.5},
 
-						ox + 0.0, 0.0, oy + 0.5, 0.0,
-						ox + 0.5, 0.0, oy - 0.5, 0.0,
-						ox + 0.5, 2.0, oy - 0.5, 0.0,
+						{ox + 0.0, 0.0, oy + 0.5},
+						{ox + 0.5, 0.0, oy - 0.5},
+						{ox + 0.5, 2.0, oy - 0.5},
 						// -Front right
 
 						// +Front left
-						ox + 0.0, 0.0, oy + 0.5, 0.0,
-						ox + 0.0, 2.0, oy + 0.5, 0.0,
-						ox - 0.5, 2.0, oy - 0.5, 0.0,
+						{ox + 0.0, 0.0, oy + 0.5},
+						{ox + 0.0, 2.0, oy + 0.5},
+						{ox - 0.5, 2.0, oy - 0.5},
 
-						ox + 0.0, 0.0, oy + 0.5, 0.0,
-						ox - 0.5, 2.0, oy - 0.5, 0.0,
-						ox - 0.5, 0.0, oy - 0.5, 0.0,
+						{ox + 0.0, 0.0, oy + 0.5},
+						{ox - 0.5, 2.0, oy - 0.5},
+						{ox - 0.5, 0.0, oy - 0.5},
 						// -Front left
 
 						// +Back
-						ox + 0.5, 2.0, oy - 0.5, 0.0,
-						ox + 0.5, 0.0, oy - 0.5, 0.0,
-						ox - 0.5, 0.0, oy - 0.5, 0.0,
+						{ox + 0.5, 2.0, oy - 0.5},
+						{ox + 0.5, 0.0, oy - 0.5},
+						{ox - 0.5, 0.0, oy - 0.5},
 
-						ox + 0.5, 2.0, oy - 0.5, 0.0,
-						ox - 0.5, 0.0, oy - 0.5, 0.0,
-						ox - 0.5, 2.0, oy - 0.5, 0.0,
+						{ox + 0.5, 2.0, oy - 0.5},
+						{ox - 0.5, 0.0, oy - 0.5},
+						{ox - 0.5, 2.0, oy - 0.5},
 						// -Back
 					}...)
 
-					normals = append(normals, []float32{
+					normals = append(normals, []mgl32.Vec3{
 						// Cap
-						0.0, 1.0, 0.0,
-						0.0, 1.0, 0.0,
-						0.0, 1.0, 0.0,
+						{0.0, 1.0, 0.0},
+						{0.0, 1.0, 0.0},
+						{0.0, 1.0, 0.0},
 
 						// +Front right
-						0.5, 0.0, 0.5,
-						0.5, 0.0, 0.5,
-						0.5, 0.0, 0.5,
+						{0.5, 0.0, 0.5},
+						{0.5, 0.0, 0.5},
+						{0.5, 0.0, 0.5},
 
-						0.5, 0.0, 0.5,
-						0.5, 0.0, 0.5,
-						0.5, 0.0, 0.5,
+						{0.5, 0.0, 0.5},
+						{0.5, 0.0, 0.5},
+						{0.5, 0.0, 0.5},
 						// -Front right
 
 						// +Front left
-						-0.5, 0.0, 0.5,
-						-0.5, 0.0, 0.5,
-						-0.5, 0.0, 0.5,
+						{-0.5, 0.0, 0.5},
+						{-0.5, 0.0, 0.5},
+						{-0.5, 0.0, 0.5},
 
-						-0.5, 0.0, 0.5,
-						-0.5, 0.0, 0.5,
-						-0.5, 0.0, 0.5,
+						{-0.5, 0.0, 0.5},
+						{-0.5, 0.0, 0.5},
+						{-0.5, 0.0, 0.5},
 						// -Front left
 
 						// +Back
-						0.0, 0.0, -1.0,
-						0.0, 0.0, -1.0,
-						0.0, 0.0, -1.0,
+						{0.0, 0.0, -1.0},
+						{0.0, 0.0, -1.0},
+						{0.0, 0.0, -1.0},
 
-						0.0, 0.0, -1.0,
-						0.0, 0.0, -1.0,
-						0.0, 0.0, -1.0,
+						{0.0, 0.0, -1.0},
+						{0.0, 0.0, -1.0},
+						{0.0, 0.0, -1.0},
 						// -Back
 					}...)
 				} else {
 					ox = (float32(x) + 0.5) * 1.1
 					oy = -((float32(y) / 2.0) - 0.5) * 1.1
 
-					verts = append(verts, []float32{
+					verts = append(verts, []mgl32.Vec3{
 						// Cap
-						ox - 0.0, 2.0, oy - 0.5, 1.0,
-						ox - 0.5, 2.0, oy + 0.5, 1.0,
-						ox + 0.5, 2.0, oy + 0.5, 1.0,
+						{ox - 0.0, 2.0, oy - 0.5},
+						{ox - 0.5, 2.0, oy + 0.5},
+						{ox + 0.5, 2.0, oy + 0.5},
 
 						// +Front right
-						ox - 0.0, 0.0, oy - 0.5, 0.0,
-						ox - 0.5, 2.0, oy + 0.5, 0.0,
-						ox - 0.0, 2.0, oy - 0.5, 0.0,
+						{ox - 0.0, 0.0, oy - 0.5},
+						{ox - 0.5, 2.0, oy + 0.5},
+						{ox - 0.0, 2.0, oy - 0.5},
 
-						ox - 0.0, 0.0, oy - 0.5, 0.0,
-						ox - 0.5, 0.0, oy + 0.5, 0.0,
-						ox - 0.5, 2.0, oy + 0.5, 0.0,
+						{ox - 0.0, 0.0, oy - 0.5},
+						{ox - 0.5, 0.0, oy + 0.5},
+						{ox - 0.5, 2.0, oy + 0.5},
 						// -Front right
 
 						// +Front left
-						ox - 0.0, 0.0, oy - 0.5, 0.0,
-						ox - 0.0, 2.0, oy - 0.5, 0.0,
-						ox + 0.5, 2.0, oy + 0.5, 0.0,
+						{ox - 0.0, 0.0, oy - 0.5},
+						{ox - 0.0, 2.0, oy - 0.5},
+						{ox + 0.5, 2.0, oy + 0.5},
 
-						ox - 0.0, 0.0, oy - 0.5, 0.0,
-						ox + 0.5, 2.0, oy + 0.5, 0.0,
-						ox + 0.5, 0.0, oy + 0.5, 0.0,
+						{ox - 0.0, 0.0, oy - 0.5},
+						{ox + 0.5, 2.0, oy + 0.5},
+						{ox + 0.5, 0.0, oy + 0.5},
 						// -Front left
 
 						// +Back
-						ox - 0.5, 2.0, oy + 0.5, 0.0,
-						ox - 0.5, 0.0, oy + 0.5, 0.0,
-						ox + 0.5, 0.0, oy + 0.5, 0.0,
+						{ox - 0.5, 2.0, oy + 0.5},
+						{ox - 0.5, 0.0, oy + 0.5},
+						{ox + 0.5, 0.0, oy + 0.5},
 
-						ox - 0.5, 2.0, oy + 0.5, 0.0,
-						ox + 0.5, 0.0, oy + 0.5, 0.0,
-						ox + 0.5, 2.0, oy + 0.5, 0.0,
+						{ox - 0.5, 2.0, oy + 0.5},
+						{ox + 0.5, 0.0, oy + 0.5},
+						{ox + 0.5, 2.0, oy + 0.5},
 						// -Back
 					}...)
-					normals = append(normals, []float32{
+					normals = append(normals, []mgl32.Vec3{
 						// Cap
-						0.0, 1.0, 0.0,
-						0.0, 1.0, 0.0,
-						0.0, 1.0, 0.0,
+						{0.0, 1.0, 0.0},
+						{0.0, 1.0, 0.0},
+						{0.0, 1.0, 0.0},
 
 						// +Front right
-						0.5, 0.0, -0.5,
-						0.5, 0.0, -0.5,
-						0.5, 0.0, -0.5,
+						{0.5, 0.0, -0.5},
+						{0.5, 0.0, -0.5},
+						{0.5, 0.0, -0.5},
 
-						0.5, 0.0, -0.5,
-						0.5, 0.0, -0.5,
-						0.5, 0.0, -0.5,
+						{0.5, 0.0, -0.5},
+						{0.5, 0.0, -0.5},
+						{0.5, 0.0, -0.5},
 						// -Front right
 
 						// +Front left
-						-0.5, 0.0, -0.5,
-						-0.5, 0.0, -0.5,
-						-0.5, 0.0, -0.5,
+						{-0.5, 0.0, -0.5},
+						{-0.5, 0.0, -0.5},
+						{-0.5, 0.0, -0.5},
 
-						-0.5, 0.0, -0.5,
-						-0.5, 0.0, -0.5,
-						-0.5, 0.0, -0.5,
+						{-0.5, 0.0, -0.5},
+						{-0.5, 0.0, -0.5},
+						{-0.5, 0.0, -0.5},
 						// -Front left
 
 						// +Back
-						0.0, 0.0, 1.0,
-						0.0, 0.0, 1.0,
-						0.0, 0.0, 1.0,
+						{0.0, 0.0, 1.0},
+						{0.0, 0.0, 1.0},
+						{0.0, 0.0, 1.0},
 
-						0.0, 0.0, 1.0,
-						0.0, 0.0, 1.0,
-						0.0, 0.0, 1.0,
+						{0.0, 0.0, 1.0},
+						{0.0, 0.0, 1.0},
+						{0.0, 0.0, 1.0},
 						// -Back
 					}...)
 				}
@@ -343,15 +336,15 @@ func main() {
 
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, gl.Ptr(verts), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(verts)*3)*4, gl.Ptr(verts), gl.DYNAMIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
-		gl.VertexAttribPointer(vertAttrib, 4, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, len(normals)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(normals)*3)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
 
 		normalAttrib := uint32(gl.GetAttribLocation(program, gl.Str("normal\x00")))
 		gl.EnableVertexAttribArray(normalAttrib)
@@ -359,11 +352,11 @@ func main() {
 	}
 	// -Setup geom
 
-	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(verts)/4, (len(verts)/4)*3, len(normals))
+	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(verts)/3, len(verts), len(normals))
 
 	var tick float64 = 0.0
 	var frames uint32 = 0
-	var tmpVerts = make([]float32, len(verts))
+	var tmpVerts = make([]mgl32.Vec3, len(verts))
 	copy(tmpVerts, verts)
 	timeUniform := gl.GetUniformLocation(program, gl.Str("time\x00"))
 	for !window.ShouldClose() {
@@ -378,73 +371,67 @@ func main() {
 		// +Update
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
-				i := ((y * width) + x) * 84
+				i := ((y * width) + x) * 21
 
 				targetHeight := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.25)
 
 				heights := []float32{targetHeight, targetHeight, targetHeight}
 				{
-					pos := float64(tmpVerts[i+0] + tmpVerts[i+2])
+					pos := float64(tmpVerts[i+0][0] + tmpVerts[i+0][2])
 					heights[0] += float32(math.Sin(pos+time) * 0.25)
 				}
 				{
-					pos := float64(tmpVerts[i+4] + tmpVerts[i+6])
+					pos := float64(tmpVerts[i+1][0] + tmpVerts[i+1][2])
 					heights[1] += float32(math.Sin(pos+time) * 0.25)
 				}
 				{
-					pos := float64(tmpVerts[i+8] + tmpVerts[i+10])
+					pos := float64(tmpVerts[i+2][0] + tmpVerts[i+2][2])
 					heights[2] += float32(math.Sin(pos+time) * 0.25)
 				}
 
 				// +Cap
-				tmpVerts[i+1] = heights[0]
-				tmpVerts[i+5] = heights[1]
-				tmpVerts[i+9] = heights[2]
+				tmpVerts[i+0][1] = heights[0]
+				tmpVerts[i+1][1] = heights[1]
+				tmpVerts[i+2][1] = heights[2]
 
 				{
-					t := ((y * width) + x) * 63
-					x, y, z := normal(tmpVerts[i+0], tmpVerts[i+1], tmpVerts[i+2], tmpVerts[i+4], tmpVerts[i+5], tmpVerts[i+6], tmpVerts[i+8], tmpVerts[i+9], tmpVerts[i+10])
-					normals[t+0] = x
-					normals[t+1] = y
-					normals[t+2] = z
-					normals[t+3] = x
-					normals[t+4] = y
-					normals[t+5] = z
-					normals[t+6] = x
-					normals[t+7] = y
-					normals[t+8] = z
+					t := ((y * width) + x) * 21
+					n := normal(tmpVerts[i+0], tmpVerts[i+1], tmpVerts[i+2])
+					normals[t+0] = n
+					normals[t+1] = n
+					normals[t+2] = n
 				}
 				// -Cap
 
 				// +Front right
-				i += 12
-				tmpVerts[i+5] = heights[1]
-				tmpVerts[i+9] = heights[0]
-				i += 12
-				tmpVerts[i+9] = heights[1]
+				i += 3
+				tmpVerts[i+1][1] = heights[1]
+				tmpVerts[i+2][1] = heights[0]
+				i += 3
+				tmpVerts[i+2][1] = heights[1]
 				// -Front right
 
 				// +Front left
-				i += 12
-				tmpVerts[i+5] = heights[0]
-				tmpVerts[i+9] = heights[2]
-				i += 12
-				tmpVerts[i+5] = heights[2]
+				i += 3
+				tmpVerts[i+1][1] = heights[0]
+				tmpVerts[i+2][1] = heights[2]
+				i += 3
+				tmpVerts[i+1][1] = heights[2]
 				// -Front left
 
 				// +Back
-				i += 12
-				tmpVerts[i+1] = heights[1]
-				i += 12
-				tmpVerts[i+1] = heights[1]
-				tmpVerts[i+9] = heights[2]
+				i += 3
+				tmpVerts[i+0][1] = heights[1]
+				i += 3
+				tmpVerts[i+0][1] = heights[1]
+				tmpVerts[i+2][1] = heights[2]
 				// -Back
 			}
 		}
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, len(tmpVerts)*4, gl.Ptr(tmpVerts), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(tmpVerts)*3)*4, gl.Ptr(tmpVerts), gl.DYNAMIC_DRAW)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, len(normals)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(normals)*3)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
 		// -Update
 
 		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(tmpVerts)))
