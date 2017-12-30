@@ -147,6 +147,10 @@ func main() {
 		model := mgl32.Translate3D(-4.0, -3.0, -10.0).Mul4(mgl32.HomogRotate3D(0.4, mgl32.Vec3{1.0, 1.5, 0.0}))
 		modelUniform := gl.GetUniformLocation(program, gl.Str("mvMatrix\x00"))
 		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+
+		normal := model.Inv().Transpose()
+		normalUniform := gl.GetUniformLocation(program, gl.Str("normalMatrix\x00"))
+		gl.UniformMatrix4fv(normalUniform, 1, false, &normal[0])
 	}
 	// -Setup shaders
 
