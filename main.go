@@ -184,162 +184,130 @@ func main() {
 	{
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
-				var ox float32
-				var oy float32
+				var rootVerts []mgl32.Vec3
+
+				offsetx := float32(0.0)
+				offsety := float32(0.0)
 				if y%2 == 0 {
-					ox = float32(x) * 1.1
-					oy = -(float32(y) / 2.0) * 1.1
+					origox := float32(x) * 1.1
+					origoy := -(float32(y) / 2.0) * 1.1
 
-					baseVerts = append(baseVerts, []mgl32.Vec3{
-						// Cap
-						{ox + 0.0, 2.0, oy + 0.5},
-						{ox + 0.5, 2.0, oy - 0.5},
-						{ox - 0.5, 2.0, oy - 0.5},
+					rootVerts = []mgl32.Vec3{
+						// Top
+						{origox + offsetx + 0.0, 2.0, origoy + offsety + 0.5},
+						{origox + offsetx + 0.5, 2.0, origoy + offsety - 0.5},
+						{origox + offsetx - 0.5, 2.0, origoy + offsety - 0.5},
 
-						// +Front right
-						{ox + 0.0, 0.0, oy + 0.5},
-						{ox + 0.5, 2.0, oy - 0.5},
-						{ox + 0.0, 2.0, oy + 0.5},
-
-						{ox + 0.0, 0.0, oy + 0.5},
-						{ox + 0.5, 0.0, oy - 0.5},
-						{ox + 0.5, 2.0, oy - 0.5},
-						// -Front right
-
-						// +Front left
-						{ox + 0.0, 0.0, oy + 0.5},
-						{ox + 0.0, 2.0, oy + 0.5},
-						{ox - 0.5, 2.0, oy - 0.5},
-
-						{ox + 0.0, 0.0, oy + 0.5},
-						{ox - 0.5, 2.0, oy - 0.5},
-						{ox - 0.5, 0.0, oy - 0.5},
-						// -Front left
-
-						// +Back
-						{ox + 0.5, 2.0, oy - 0.5},
-						{ox + 0.5, 0.0, oy - 0.5},
-						{ox - 0.5, 0.0, oy - 0.5},
-
-						{ox + 0.5, 2.0, oy - 0.5},
-						{ox - 0.5, 0.0, oy - 0.5},
-						{ox - 0.5, 2.0, oy - 0.5},
-						// -Back
-					}...)
-
-					baseNormals = append(baseNormals, []mgl32.Vec3{
-						// Cap
-						{0.0, 1.0, 0.0},
-						{0.0, 1.0, 0.0},
-						{0.0, 1.0, 0.0},
-
-						// +Front right
-						{0.5, 0.0, 0.5},
-						{0.5, 0.0, 0.5},
-						{0.5, 0.0, 0.5},
-
-						{0.5, 0.0, 0.5},
-						{0.5, 0.0, 0.5},
-						{0.5, 0.0, 0.5},
-						// -Front right
-
-						// +Front left
-						{-0.5, 0.0, 0.5},
-						{-0.5, 0.0, 0.5},
-						{-0.5, 0.0, 0.5},
-
-						{-0.5, 0.0, 0.5},
-						{-0.5, 0.0, 0.5},
-						{-0.5, 0.0, 0.5},
-						// -Front left
-
-						// +Back
-						{0.0, 0.0, -1.0},
-						{0.0, 0.0, -1.0},
-						{0.0, 0.0, -1.0},
-
-						{0.0, 0.0, -1.0},
-						{0.0, 0.0, -1.0},
-						{0.0, 0.0, -1.0},
-						// -Back
-					}...)
+						// Bottom
+						{origox + 0.0, 0.0, origoy + 0.5},
+						{origox + 0.5, 0.0, origoy - 0.5},
+						{origox - 0.5, 0.0, origoy - 0.5},
+					}
 				} else {
-					ox = (float32(x) + 0.5) * 1.1
-					oy = -((float32(y) / 2.0) - 0.5) * 1.1
+					origox := (float32(x) + 0.5) * 1.1
+					origoy := -((float32(y) / 2.0) - 0.5) * 1.1
 
-					baseVerts = append(baseVerts, []mgl32.Vec3{
-						// Cap
-						{ox - 0.0, 2.0, oy - 0.5},
-						{ox - 0.5, 2.0, oy + 0.5},
-						{ox + 0.5, 2.0, oy + 0.5},
+					rootVerts = []mgl32.Vec3{
+						// Top
+						{origox + offsetx - 0.0, 2.0, origoy + offsety - 0.5},
+						{origox + offsetx - 0.5, 2.0, origoy + offsety + 0.5},
+						{origox + offsetx + 0.5, 2.0, origoy + offsety + 0.5},
 
-						// +Front right
-						{ox - 0.0, 0.0, oy - 0.5},
-						{ox - 0.5, 2.0, oy + 0.5},
-						{ox - 0.0, 2.0, oy - 0.5},
-
-						{ox - 0.0, 0.0, oy - 0.5},
-						{ox - 0.5, 0.0, oy + 0.5},
-						{ox - 0.5, 2.0, oy + 0.5},
-						// -Front right
-
-						// +Front left
-						{ox - 0.0, 0.0, oy - 0.5},
-						{ox - 0.0, 2.0, oy - 0.5},
-						{ox + 0.5, 2.0, oy + 0.5},
-
-						{ox - 0.0, 0.0, oy - 0.5},
-						{ox + 0.5, 2.0, oy + 0.5},
-						{ox + 0.5, 0.0, oy + 0.5},
-						// -Front left
-
-						// +Back
-						{ox - 0.5, 2.0, oy + 0.5},
-						{ox - 0.5, 0.0, oy + 0.5},
-						{ox + 0.5, 0.0, oy + 0.5},
-
-						{ox - 0.5, 2.0, oy + 0.5},
-						{ox + 0.5, 0.0, oy + 0.5},
-						{ox + 0.5, 2.0, oy + 0.5},
-						// -Back
-					}...)
-					baseNormals = append(baseNormals, []mgl32.Vec3{
-						// Cap
-						{0.0, 1.0, 0.0},
-						{0.0, 1.0, 0.0},
-						{0.0, 1.0, 0.0},
-
-						// +Front right
-						{0.5, 0.0, -0.5},
-						{0.5, 0.0, -0.5},
-						{0.5, 0.0, -0.5},
-
-						{0.5, 0.0, -0.5},
-						{0.5, 0.0, -0.5},
-						{0.5, 0.0, -0.5},
-						// -Front right
-
-						// +Front left
-						{-0.5, 0.0, -0.5},
-						{-0.5, 0.0, -0.5},
-						{-0.5, 0.0, -0.5},
-
-						{-0.5, 0.0, -0.5},
-						{-0.5, 0.0, -0.5},
-						{-0.5, 0.0, -0.5},
-						// -Front left
-
-						// +Back
-						{0.0, 0.0, 1.0},
-						{0.0, 0.0, 1.0},
-						{0.0, 0.0, 1.0},
-
-						{0.0, 0.0, 1.0},
-						{0.0, 0.0, 1.0},
-						{0.0, 0.0, 1.0},
-						// -Back
-					}...)
+						// Bottom
+						{origox - 0.0, 0.0, origoy - 0.5},
+						{origox - 0.5, 0.0, origoy + 0.5},
+						{origox + 0.5, 0.0, origoy + 0.5},
+					}
 				}
+				rootNormals := []mgl32.Vec3{
+					// Cap
+					normal(rootVerts[0], rootVerts[1], rootVerts[2]),
+
+					// Front right
+					normal(rootVerts[3], rootVerts[1], rootVerts[0]),
+
+					// Front left
+					normal(rootVerts[3], rootVerts[0], rootVerts[2]),
+
+					// Back
+					normal(rootVerts[1], rootVerts[4], rootVerts[5]),
+				}
+
+				baseVerts = append(baseVerts, []mgl32.Vec3{
+					// +Cap
+					rootVerts[0],
+					rootVerts[1],
+					rootVerts[2],
+					// -Cap
+
+					// +Front right
+					rootVerts[3],
+					rootVerts[1],
+					rootVerts[0],
+
+					rootVerts[3],
+					rootVerts[4],
+					rootVerts[1],
+					// -Front right
+
+					// +Front left
+					rootVerts[3],
+					rootVerts[0],
+					rootVerts[2],
+
+					rootVerts[3],
+					rootVerts[2],
+					rootVerts[5],
+					// -Front left
+
+					// +Back
+					rootVerts[1],
+					rootVerts[4],
+					rootVerts[5],
+
+					rootVerts[1],
+					rootVerts[5],
+					rootVerts[2],
+					// -Back
+				}...)
+
+				baseNormals = append(baseNormals, []mgl32.Vec3{
+					// +Cap
+					rootNormals[0],
+					rootNormals[0],
+					rootNormals[0],
+					// -Cap
+
+					// +Front right
+					rootNormals[1],
+					rootNormals[1],
+					rootNormals[1],
+
+					rootNormals[1],
+					rootNormals[1],
+					rootNormals[1],
+					// -Front right
+
+					// +Front left
+					rootNormals[2],
+					rootNormals[2],
+					rootNormals[2],
+
+					rootNormals[2],
+					rootNormals[2],
+					rootNormals[2],
+					// -Front left
+
+					// +Back
+					rootNormals[3],
+					rootNormals[3],
+					rootNormals[3],
+
+					rootNormals[3],
+					rootNormals[3],
+					rootNormals[3],
+					// -Back
+				}...)
 			}
 		}
 		//fmt.Printf("%v\n", baseVerts)
