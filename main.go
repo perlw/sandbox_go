@@ -9,10 +9,12 @@ import (
 	"math"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func init() {
 	runtime.LockOSThread()
+	runtime.GOMAXPROCS(2)
 }
 
 func newProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
@@ -77,6 +79,11 @@ func normal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
 	u := p2.Sub(p1)
 	v := p3.Sub(p1)
 	return u.Cross(v)
+}
+
+type Mesh struct {
+	verts   []mgl32.Vec3
+	normals []mgl32.Vec3
 }
 
 func main() {
@@ -165,12 +172,12 @@ func main() {
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
-	var verts = []mgl32.Vec3{}
-	var normals = []mgl32.Vec3{}
+	var baseVerts = []mgl32.Vec3{}
+	var baseNormals = []mgl32.Vec3{}
 	var vbo uint32
 	var vbo2 uint32
-	width := 16
-	height := 24
+	width := 32
+	height := 48
 	{
 		for y := 0; y < height; y++ {
 			for x := 0; x < width; x++ {
@@ -180,7 +187,7 @@ func main() {
 					ox = float32(x) * 1.1
 					oy = -(float32(y) / 2.0) * 1.1
 
-					verts = append(verts, []mgl32.Vec3{
+					baseVerts = append(baseVerts, []mgl32.Vec3{
 						// Cap
 						{ox + 0.0, 2.0, oy + 0.5},
 						{ox + 0.5, 2.0, oy - 0.5},
@@ -217,7 +224,7 @@ func main() {
 						// -Back
 					}...)
 
-					normals = append(normals, []mgl32.Vec3{
+					baseNormals = append(baseNormals, []mgl32.Vec3{
 						// Cap
 						{0.0, 1.0, 0.0},
 						{0.0, 1.0, 0.0},
@@ -257,7 +264,7 @@ func main() {
 					ox = (float32(x) + 0.5) * 1.1
 					oy = -((float32(y) / 2.0) - 0.5) * 1.1
 
-					verts = append(verts, []mgl32.Vec3{
+					baseVerts = append(baseVerts, []mgl32.Vec3{
 						// Cap
 						{ox - 0.0, 2.0, oy - 0.5},
 						{ox - 0.5, 2.0, oy + 0.5},
@@ -293,7 +300,7 @@ func main() {
 						{ox + 0.5, 2.0, oy + 0.5},
 						// -Back
 					}...)
-					normals = append(normals, []mgl32.Vec3{
+					baseNormals = append(baseNormals, []mgl32.Vec3{
 						// Cap
 						{0.0, 1.0, 0.0},
 						{0.0, 1.0, 0.0},
@@ -332,11 +339,11 @@ func main() {
 				}
 			}
 		}
-		//fmt.Printf("%v\n", verts)
+		//fmt.Printf("%v\n", baseVerts)
 
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(verts)*3)*4, gl.Ptr(verts), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(baseVerts)*3)*4, gl.Ptr(baseVerts), gl.DYNAMIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
@@ -344,7 +351,7 @@ func main() {
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(normals)*3)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(baseNormals)*3)*4, gl.Ptr(baseNormals), gl.DYNAMIC_DRAW)
 
 		normalAttrib := uint32(gl.GetAttribLocation(program, gl.Str("normal\x00")))
 		gl.EnableVertexAttribArray(normalAttrib)
@@ -352,89 +359,112 @@ func main() {
 	}
 	// -Setup geom
 
-	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(verts)/3, len(verts), len(normals))
+	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseVerts)/3, len(baseVerts), len(baseNormals))
+
+	waveRebuild := make(chan Mesh)
+	go func(ch chan Mesh) {
+		tickRate := int64(1000000000) / int64(60000000)
+
+		mesh := Mesh{
+			verts:   make([]mgl32.Vec3, len(baseVerts)),
+			normals: make([]mgl32.Vec3, len(baseNormals)),
+		}
+		copy(mesh.verts, baseVerts)
+		copy(mesh.normals, baseNormals)
+
+		curr := time.Now().UnixNano()
+		for {
+			tick := time.Now().UnixNano()
+			if tick-curr >= tickRate {
+				curr = tick
+
+				time := float64(tick) / 1000000000
+				for y := 0; y < height; y++ {
+					for x := 0; x < width; x++ {
+						i := ((y * width) + x) * 21
+
+						targetHeight := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.25)
+
+						heights := []float32{targetHeight, targetHeight, targetHeight}
+						{
+							pos := float64(mesh.verts[i+0][0] + mesh.verts[i+0][2])
+							heights[0] += float32(math.Sin(pos+time) * 0.25)
+						}
+						{
+							pos := float64(mesh.verts[i+1][0] + mesh.verts[i+1][2])
+							heights[1] += float32(math.Sin(pos+time) * 0.25)
+						}
+						{
+							pos := float64(mesh.verts[i+2][0] + mesh.verts[i+2][2])
+							heights[2] += float32(math.Sin(pos+time) * 0.25)
+						}
+
+						// +Cap
+						mesh.verts[i+0][1] = heights[0]
+						mesh.verts[i+1][1] = heights[1]
+						mesh.verts[i+2][1] = heights[2]
+
+						{
+							t := ((y * width) + x) * 21
+							n := normal(mesh.verts[i+0], mesh.verts[i+1], mesh.verts[i+2])
+							mesh.normals[t+0] = n
+							mesh.normals[t+1] = n
+							mesh.normals[t+2] = n
+						}
+						// -Cap
+
+						// +Front right
+						i += 3
+						mesh.verts[i+1][1] = heights[1]
+						mesh.verts[i+2][1] = heights[0]
+						i += 3
+						mesh.verts[i+2][1] = heights[1]
+						// -Front right
+
+						// +Front left
+						i += 3
+						mesh.verts[i+1][1] = heights[0]
+						mesh.verts[i+2][1] = heights[2]
+						i += 3
+						mesh.verts[i+1][1] = heights[2]
+						// -Front left
+
+						// +Back
+						i += 3
+						mesh.verts[i+0][1] = heights[1]
+						i += 3
+						mesh.verts[i+0][1] = heights[1]
+						mesh.verts[i+2][1] = heights[2]
+						// -Back
+					}
+				}
+
+				ch <- mesh
+			}
+
+			runtime.Gosched()
+		}
+	}(waveRebuild)
 
 	var tick float64 = 0.0
 	var frames uint32 = 0
-	var tmpVerts = make([]mgl32.Vec3, len(verts))
-	copy(tmpVerts, verts)
-	timeUniform := gl.GetUniformLocation(program, gl.Str("time\x00"))
 	for !window.ShouldClose() {
 		time := glfw.GetTime()
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		gl.Uniform1f(timeUniform, float32(time))
+		select {
+		case mesh := <-waveRebuild:
+			gl.BindVertexArray(vao)
+			gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.verts)*3)*4, gl.Ptr(mesh.verts), gl.DYNAMIC_DRAW)
+			gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
+			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.normals)*3)*4, gl.Ptr(mesh.normals), gl.DYNAMIC_DRAW)
+		default:
+		}
 
 		// +Draw geom
 		gl.BindVertexArray(vao)
-
-		// +Update
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				i := ((y * width) + x) * 21
-
-				targetHeight := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.25)
-
-				heights := []float32{targetHeight, targetHeight, targetHeight}
-				{
-					pos := float64(tmpVerts[i+0][0] + tmpVerts[i+0][2])
-					heights[0] += float32(math.Sin(pos+time) * 0.25)
-				}
-				{
-					pos := float64(tmpVerts[i+1][0] + tmpVerts[i+1][2])
-					heights[1] += float32(math.Sin(pos+time) * 0.25)
-				}
-				{
-					pos := float64(tmpVerts[i+2][0] + tmpVerts[i+2][2])
-					heights[2] += float32(math.Sin(pos+time) * 0.25)
-				}
-
-				// +Cap
-				tmpVerts[i+0][1] = heights[0]
-				tmpVerts[i+1][1] = heights[1]
-				tmpVerts[i+2][1] = heights[2]
-
-				{
-					t := ((y * width) + x) * 21
-					n := normal(tmpVerts[i+0], tmpVerts[i+1], tmpVerts[i+2])
-					normals[t+0] = n
-					normals[t+1] = n
-					normals[t+2] = n
-				}
-				// -Cap
-
-				// +Front right
-				i += 3
-				tmpVerts[i+1][1] = heights[1]
-				tmpVerts[i+2][1] = heights[0]
-				i += 3
-				tmpVerts[i+2][1] = heights[1]
-				// -Front right
-
-				// +Front left
-				i += 3
-				tmpVerts[i+1][1] = heights[0]
-				tmpVerts[i+2][1] = heights[2]
-				i += 3
-				tmpVerts[i+1][1] = heights[2]
-				// -Front left
-
-				// +Back
-				i += 3
-				tmpVerts[i+0][1] = heights[1]
-				i += 3
-				tmpVerts[i+0][1] = heights[1]
-				tmpVerts[i+2][1] = heights[2]
-				// -Back
-			}
-		}
-		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(tmpVerts)*3)*4, gl.Ptr(tmpVerts), gl.DYNAMIC_DRAW)
-		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(normals)*3)*4, gl.Ptr(normals), gl.DYNAMIC_DRAW)
-		// -Update
-
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(tmpVerts)))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseVerts)))
 		// -Draw geom
 
 		window.SwapBuffers()

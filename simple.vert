@@ -7,8 +7,6 @@ uniform mat4 mvMatrix;
 uniform mat4 pMatrix;
 uniform mat4 normalMatrix;
 
-uniform float time;
-
 out vec4 feye;
 out vec3 fvert;
 out vec3 fcolor;
