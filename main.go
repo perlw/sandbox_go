@@ -75,7 +75,7 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-func normal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
+func calcNormal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
 	u := p2.Sub(p1)
 	v := p3.Sub(p1)
 	return u.Cross(v)
@@ -84,6 +84,152 @@ func normal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
 type Mesh struct {
 	verts   []mgl32.Vec3
 	normals []mgl32.Vec3
+}
+
+func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mesh {
+	width := 32
+	height := 48
+
+	mesh := Mesh{
+		verts:   []mgl32.Vec3{},
+		normals: []mgl32.Vec3{},
+	}
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			var rootVerts []mgl32.Vec3
+
+			offsetx := float32(0.0)
+			offsety := float32(0.0)
+			if y%2 == 0 {
+				origox := float32(x) * 1.1
+				origoy := -(float32(y) / 2.0) * 1.1
+
+				rootVerts = []mgl32.Vec3{
+					// Top
+					{origox + offsetx + 0.0, 2.0, origoy + offsety + 0.5},
+					{origox + offsetx + 0.5, 2.0, origoy + offsety - 0.5},
+					{origox + offsetx - 0.5, 2.0, origoy + offsety - 0.5},
+
+					// Bottom
+					{origox + 0.0, 0.0, origoy + 0.5},
+					{origox + 0.5, 0.0, origoy - 0.5},
+					{origox - 0.5, 0.0, origoy - 0.5},
+				}
+			} else {
+				origox := (float32(x) + 0.5) * 1.1
+				origoy := -((float32(y) / 2.0) - 0.5) * 1.1
+
+				rootVerts = []mgl32.Vec3{
+					// Top
+					{origox + offsetx - 0.0, 2.0, origoy + offsety - 0.5},
+					{origox + offsetx - 0.5, 2.0, origoy + offsety + 0.5},
+					{origox + offsetx + 0.5, 2.0, origoy + offsety + 0.5},
+
+					// Bottom
+					{origox - 0.0, 0.0, origoy - 0.5},
+					{origox - 0.5, 0.0, origoy + 0.5},
+					{origox + 0.5, 0.0, origoy + 0.5},
+				}
+			}
+			if vertFunc != nil {
+				for i, vert := range rootVerts {
+					rootVerts[i] = vertFunc(float32(x), float32(y), vert)
+				}
+			}
+			rootNormals := []mgl32.Vec3{
+				// Cap
+				calcNormal(rootVerts[0], rootVerts[1], rootVerts[2]),
+
+				// Front right
+				calcNormal(rootVerts[3], rootVerts[1], rootVerts[0]),
+
+				// Front left
+				calcNormal(rootVerts[3], rootVerts[0], rootVerts[2]),
+
+				// Back
+				calcNormal(rootVerts[1], rootVerts[4], rootVerts[5]),
+			}
+
+			mesh.verts = append(mesh.verts, []mgl32.Vec3{
+				// +Cap
+				rootVerts[0],
+				rootVerts[1],
+				rootVerts[2],
+				// -Cap
+
+				// +Front right
+				rootVerts[3],
+				rootVerts[1],
+				rootVerts[0],
+
+				rootVerts[3],
+				rootVerts[4],
+				rootVerts[1],
+				// -Front right
+
+				// +Front left
+				rootVerts[3],
+				rootVerts[0],
+				rootVerts[2],
+
+				rootVerts[3],
+				rootVerts[2],
+				rootVerts[5],
+				// -Front left
+
+				// +Back
+				rootVerts[1],
+				rootVerts[4],
+				rootVerts[5],
+
+				rootVerts[1],
+				rootVerts[5],
+				rootVerts[2],
+				// -Back
+			}...)
+
+			mesh.normals = append(mesh.normals, []mgl32.Vec3{
+				// +Cap
+				rootNormals[0],
+				rootNormals[0],
+				rootNormals[0],
+				// -Cap
+
+				// +Front right
+				rootNormals[1],
+				rootNormals[1],
+				rootNormals[1],
+
+				rootNormals[1],
+				rootNormals[1],
+				rootNormals[1],
+				// -Front right
+
+				// +Front left
+				rootNormals[2],
+				rootNormals[2],
+				rootNormals[2],
+
+				rootNormals[2],
+				rootNormals[2],
+				rootNormals[2],
+				// -Front left
+
+				// +Back
+				rootNormals[3],
+				rootNormals[3],
+				rootNormals[3],
+
+				rootNormals[3],
+				rootNormals[3],
+				rootNormals[3],
+				// -Back
+			}...)
+		}
+	}
+	//fmt.Printf("%v\n", baseVerts)
+
+	return mesh
 }
 
 const width = 1280
@@ -175,146 +321,13 @@ func main() {
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
-	var baseVerts = []mgl32.Vec3{}
-	var baseNormals = []mgl32.Vec3{}
 	var vbo uint32
 	var vbo2 uint32
-	width := 32
-	height := 48
+	baseMesh := generateMesh(nil)
 	{
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				var rootVerts []mgl32.Vec3
-
-				offsetx := float32(0.0)
-				offsety := float32(0.0)
-				if y%2 == 0 {
-					origox := float32(x) * 1.1
-					origoy := -(float32(y) / 2.0) * 1.1
-
-					rootVerts = []mgl32.Vec3{
-						// Top
-						{origox + offsetx + 0.0, 2.0, origoy + offsety + 0.5},
-						{origox + offsetx + 0.5, 2.0, origoy + offsety - 0.5},
-						{origox + offsetx - 0.5, 2.0, origoy + offsety - 0.5},
-
-						// Bottom
-						{origox + 0.0, 0.0, origoy + 0.5},
-						{origox + 0.5, 0.0, origoy - 0.5},
-						{origox - 0.5, 0.0, origoy - 0.5},
-					}
-				} else {
-					origox := (float32(x) + 0.5) * 1.1
-					origoy := -((float32(y) / 2.0) - 0.5) * 1.1
-
-					rootVerts = []mgl32.Vec3{
-						// Top
-						{origox + offsetx - 0.0, 2.0, origoy + offsety - 0.5},
-						{origox + offsetx - 0.5, 2.0, origoy + offsety + 0.5},
-						{origox + offsetx + 0.5, 2.0, origoy + offsety + 0.5},
-
-						// Bottom
-						{origox - 0.0, 0.0, origoy - 0.5},
-						{origox - 0.5, 0.0, origoy + 0.5},
-						{origox + 0.5, 0.0, origoy + 0.5},
-					}
-				}
-				rootNormals := []mgl32.Vec3{
-					// Cap
-					normal(rootVerts[0], rootVerts[1], rootVerts[2]),
-
-					// Front right
-					normal(rootVerts[3], rootVerts[1], rootVerts[0]),
-
-					// Front left
-					normal(rootVerts[3], rootVerts[0], rootVerts[2]),
-
-					// Back
-					normal(rootVerts[1], rootVerts[4], rootVerts[5]),
-				}
-
-				baseVerts = append(baseVerts, []mgl32.Vec3{
-					// +Cap
-					rootVerts[0],
-					rootVerts[1],
-					rootVerts[2],
-					// -Cap
-
-					// +Front right
-					rootVerts[3],
-					rootVerts[1],
-					rootVerts[0],
-
-					rootVerts[3],
-					rootVerts[4],
-					rootVerts[1],
-					// -Front right
-
-					// +Front left
-					rootVerts[3],
-					rootVerts[0],
-					rootVerts[2],
-
-					rootVerts[3],
-					rootVerts[2],
-					rootVerts[5],
-					// -Front left
-
-					// +Back
-					rootVerts[1],
-					rootVerts[4],
-					rootVerts[5],
-
-					rootVerts[1],
-					rootVerts[5],
-					rootVerts[2],
-					// -Back
-				}...)
-
-				baseNormals = append(baseNormals, []mgl32.Vec3{
-					// +Cap
-					rootNormals[0],
-					rootNormals[0],
-					rootNormals[0],
-					// -Cap
-
-					// +Front right
-					rootNormals[1],
-					rootNormals[1],
-					rootNormals[1],
-
-					rootNormals[1],
-					rootNormals[1],
-					rootNormals[1],
-					// -Front right
-
-					// +Front left
-					rootNormals[2],
-					rootNormals[2],
-					rootNormals[2],
-
-					rootNormals[2],
-					rootNormals[2],
-					rootNormals[2],
-					// -Front left
-
-					// +Back
-					rootNormals[3],
-					rootNormals[3],
-					rootNormals[3],
-
-					rootNormals[3],
-					rootNormals[3],
-					rootNormals[3],
-					// -Back
-				}...)
-			}
-		}
-		//fmt.Printf("%v\n", baseVerts)
-
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(baseVerts)*3)*4, gl.Ptr(baseVerts), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(baseMesh.verts)*3)*4, gl.Ptr(baseMesh.verts), gl.DYNAMIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
@@ -322,7 +335,7 @@ func main() {
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(baseNormals)*3)*4, gl.Ptr(baseNormals), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(baseMesh.normals)*3)*4, gl.Ptr(baseMesh.normals), gl.DYNAMIC_DRAW)
 
 		normalAttrib := uint32(gl.GetAttribLocation(program, gl.Str("normal\x00")))
 		gl.EnableVertexAttribArray(normalAttrib)
@@ -330,18 +343,11 @@ func main() {
 	}
 	// -Setup geom
 
-	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseVerts)/3, len(baseVerts), len(baseNormals))
+	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseMesh.verts)/3, len(baseMesh.verts), len(baseMesh.normals))
 
 	waveRebuild := make(chan Mesh)
 	go func(ch chan Mesh) {
 		tickRate := int64(1000000000) / int64(60000000)
-
-		mesh := Mesh{
-			verts:   make([]mgl32.Vec3, len(baseVerts)),
-			normals: make([]mgl32.Vec3, len(baseNormals)),
-		}
-		copy(mesh.verts, baseVerts)
-		copy(mesh.normals, baseNormals)
 
 		curr := time.Now().UnixNano()
 		for {
@@ -350,66 +356,17 @@ func main() {
 				curr = tick
 
 				time := float64(tick) / 1000000000
-				for y := 0; y < height; y++ {
-					for x := 0; x < width; x++ {
-						i := ((y * width) + x) * 21
+				mesh := generateMesh(func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3 {
+					if vertex[1] > 0.0 {
+						// Base height
+						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.25)
 
-						targetHeight := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.25)
-
-						heights := []float32{targetHeight, targetHeight, targetHeight}
-						{
-							pos := float64(mesh.verts[i+0][0] + mesh.verts[i+0][2])
-							heights[0] += float32(math.Sin(pos+time) * 0.25)
-						}
-						{
-							pos := float64(mesh.verts[i+1][0] + mesh.verts[i+1][2])
-							heights[1] += float32(math.Sin(pos+time) * 0.25)
-						}
-						{
-							pos := float64(mesh.verts[i+2][0] + mesh.verts[i+2][2])
-							heights[2] += float32(math.Sin(pos+time) * 0.25)
-						}
-
-						// +Cap
-						mesh.verts[i+0][1] = heights[0]
-						mesh.verts[i+1][1] = heights[1]
-						mesh.verts[i+2][1] = heights[2]
-
-						{
-							t := ((y * width) + x) * 21
-							n := normal(mesh.verts[i+0], mesh.verts[i+1], mesh.verts[i+2])
-							mesh.normals[t+0] = n
-							mesh.normals[t+1] = n
-							mesh.normals[t+2] = n
-						}
-						// -Cap
-
-						// +Front right
-						i += 3
-						mesh.verts[i+1][1] = heights[1]
-						mesh.verts[i+2][1] = heights[0]
-						i += 3
-						mesh.verts[i+2][1] = heights[1]
-						// -Front right
-
-						// +Front left
-						i += 3
-						mesh.verts[i+1][1] = heights[0]
-						mesh.verts[i+2][1] = heights[2]
-						i += 3
-						mesh.verts[i+1][1] = heights[2]
-						// -Front left
-
-						// +Back
-						i += 3
-						mesh.verts[i+0][1] = heights[1]
-						i += 3
-						mesh.verts[i+0][1] = heights[1]
-						mesh.verts[i+2][1] = heights[2]
-						// -Back
+						// Tweaked height
+						vertex[1] += float32(math.Sin(float64(vertex[0]+vertex[2])+time) * 0.25)
 					}
-				}
 
+					return vertex
+				})
 				ch <- mesh
 			}
 
@@ -435,7 +392,7 @@ func main() {
 
 		// +Draw geom
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseVerts)))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseMesh.verts)))
 		// -Draw geom
 
 		window.SwapBuffers()
