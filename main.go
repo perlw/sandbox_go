@@ -86,6 +86,9 @@ type Mesh struct {
 	normals []mgl32.Vec3
 }
 
+const width = 1280
+const height = 720
+
 func main() {
 	// +Setup GLFW
 	if err := glfw.Init(); err != nil {
@@ -100,7 +103,7 @@ func main() {
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
 
-	window, err := glfw.CreateWindow(640, 480, "Testing", nil, nil)
+	window, err := glfw.CreateWindow(width, height, "Testing", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -129,7 +132,7 @@ func main() {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.ClearDepth(1)
 	gl.DepthFunc(gl.LESS)
-	gl.Viewport(0, 0, 640, 480)
+	gl.Viewport(0, 0, width, height)
 	gl.ClearColor(0.5, 0.5, 1.0, 1.0)
 	// -Setup GL
 
@@ -152,7 +155,7 @@ func main() {
 	gl.UseProgram(program)
 
 	{
-		projection := mgl32.Perspective(mgl32.DegToRad(45.0), 640.0/480.0, 1.0, 100.0)
+		projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(width)/float32(height), 1.0, 100.0)
 		fmt.Printf("%v\n", projection)
 		projectionUniform := gl.GetUniformLocation(program, gl.Str("pMatrix\x00"))
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
