@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-gl/gl/v3.3-core/gl"
-	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/go-gl/mathgl/mgl32"
 	"io/ioutil"
 	"math"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 func init() {
@@ -87,8 +88,8 @@ type Mesh struct {
 }
 
 func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mesh {
-	width := 32
-	height := 48
+	width := 128
+	height := 192
 
 	mesh := Mesh{
 		verts:   []mgl32.Vec3{},

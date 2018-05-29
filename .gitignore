@@ -3,3 +3,4 @@
 *.swo
 tags
 sandbox_go
+bin/
