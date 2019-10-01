@@ -15,7 +15,8 @@ import (
 
 func init() {
 	runtime.LockOSThread()
-	runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	fmt.Printf("Using %d CPUs\n", runtime.NumCPU())
 }
 
 func newProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
@@ -249,6 +250,7 @@ func main() {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.Samples, 4)
 
 	window, err := glfw.CreateWindow(width, height, "Testing", nil, nil)
 	if err != nil {
@@ -277,6 +279,7 @@ func main() {
 
 	gl.Enable(gl.CULL_FACE)
 	gl.Enable(gl.DEPTH_TEST)
+	gl.Enable(gl.MULTISAMPLE)
 	gl.ClearDepth(1)
 	gl.DepthFunc(gl.LESS)
 	gl.Viewport(0, 0, width, height)
@@ -375,8 +378,8 @@ func main() {
 		}
 	}(waveRebuild)
 
-	var tick float64 = 0.0
-	var frames uint32 = 0
+	var tick float64
+	var frames uint32
 	for !window.ShouldClose() {
 		time := glfw.GetTime()
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -385,6 +388,7 @@ func main() {
 		case mesh := <-waveRebuild:
 			gl.BindVertexArray(vao)
 			gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+			// * 3 == 3 vertices, * 4 == size of float32
 			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.verts)*3)*4, gl.Ptr(mesh.verts), gl.DYNAMIC_DRAW)
 			gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
 			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.normals)*3)*4, gl.Ptr(mesh.normals), gl.DYNAMIC_DRAW)

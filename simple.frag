@@ -21,5 +21,6 @@ void main() {
 
 		frag = (fcolor * lambertian) + (specular * vec3(0.8, 0.7, 0.2));
 	}
+
 	fragment = vec4(frag.rgb, 1.0);
 }
