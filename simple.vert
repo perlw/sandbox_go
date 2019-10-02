@@ -11,9 +11,14 @@ out vec3 fcolor;
 void main() {
 	vec3 vert = vertex.xyz;
 
+	/*
 	fcolor.r = vert.x / 18.0;
 	fcolor.g = vert.y / 4.0;
 	fcolor.b = vert.z / 26.0;
+	*/
+	fcolor.r = 0.25 * (vert.y / 4.0);
+	fcolor.g = 0.75 * (vert.y / 4.0);
+	fcolor.b = 0.5 * (vert.y / 4.0);
 
 	gl_Position = pMatrix * mvMatrix * vec4(vert.xyz, 1.0);
 }

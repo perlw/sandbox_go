@@ -363,7 +363,7 @@ func main() {
 				mesh := generateMesh(func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3 {
 					if vertex[1] > 0.0 {
 						// Base height
-						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.25)
+						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.5)
 
 						// Tweaked height
 						vertex[1] += float32(math.Sin(float64(vertex[0]+vertex[2])+time) * 0.25)
