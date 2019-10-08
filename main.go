@@ -152,41 +152,70 @@ func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mes
 				calcNormal(rootVerts[1], rootVerts[4], rootVerts[5]),
 			}
 
+			var col mgl32.Vec3
+			if x%3 == 0 {
+				col = mgl32.Vec3{1.0, 0.0, 0.0}
+			} else if x%3 == 1 {
+				col = mgl32.Vec3{0.0, 1.0, 0.0}
+			} else if x%3 == 2 {
+				col = mgl32.Vec3{0.0, 0.0, 1.0}
+			}
 			mesh.verts = append(mesh.verts, []mgl32.Vec3{
 				// +Cap
 				rootVerts[0],
+				col,
 				rootVerts[1],
+				col,
 				rootVerts[2],
+				col,
 				// -Cap
 
 				// +Front right
 				rootVerts[3],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[1],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[0],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 
 				rootVerts[3],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[4],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[1],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				// -Front right
 
 				// +Front left
 				rootVerts[3],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[0],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[2],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 
 				rootVerts[3],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[2],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[5],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				// -Front left
 
 				// +Back
 				rootVerts[1],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[4],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[5],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 
 				rootVerts[1],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[5],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				rootVerts[2],
+				mgl32.Vec3{1.0, 1.0, 1.0},
 				// -Back
 			}...)
 
@@ -305,7 +334,7 @@ func main() {
 	gl.UseProgram(program)
 
 	{
-		projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(width)/float32(height), 1.0, 100.0)
+		projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(width)/float32(height), 1.0, 500.0)
 		fmt.Printf("%v\n", projection)
 		projectionUniform := gl.GetUniformLocation(program, gl.Str("pMatrix\x00"))
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
@@ -335,7 +364,9 @@ func main() {
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
-		gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 24, gl.PtrOffset(0))
+		gl.EnableVertexAttribArray(3)
+		gl.VertexAttribPointer(3, 3, gl.FLOAT, false, 24, gl.PtrOffset(12))
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
@@ -347,7 +378,7 @@ func main() {
 	}
 	// -Setup geom
 
-	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseMesh.verts)/3, len(baseMesh.verts), len(baseMesh.normals))
+	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseMesh.verts)/6, len(baseMesh.verts)/2, len(baseMesh.normals))
 
 	waveRebuild := make(chan Mesh)
 	go func(ch chan Mesh) {
@@ -397,7 +428,7 @@ func main() {
 
 		// +Draw geom
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseMesh.verts)))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseMesh.verts)/2))
 		// -Draw geom
 
 		window.SwapBuffers()
