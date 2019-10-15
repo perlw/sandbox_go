@@ -172,50 +172,50 @@ func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mes
 
 				// +Front right
 				rootVerts[3],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[1],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[0],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 
 				rootVerts[3],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[4],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[1],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				// -Front right
 
 				// +Front left
 				rootVerts[3],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[0],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[2],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 
 				rootVerts[3],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[2],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[5],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				// -Front left
 
 				// +Back
 				rootVerts[1],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[4],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[5],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 
 				rootVerts[1],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[5],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				rootVerts[2],
-				mgl32.Vec3{1.0, 1.0, 1.0},
+				col,
 				// -Back
 			}...)
 
@@ -397,7 +397,7 @@ func main() {
 				mesh := generateMesh(func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3 {
 					if vertex[1] > 0.0 {
 						// Base height
-						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.5)
+						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.1)
 
 						// Tweaked height
 						vertex[1] += float32(math.Sin(float64(vertex[0]+vertex[2])+time) * 0.25)
