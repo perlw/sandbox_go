@@ -364,9 +364,12 @@ func main() {
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
+		// Step (24) is not the distance between, it's the data+offset, in this case data (12) + offset (12) == 24
 		gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 24, gl.PtrOffset(0))
-		gl.EnableVertexAttribArray(3)
-		gl.VertexAttribPointer(3, 3, gl.FLOAT, false, 24, gl.PtrOffset(12))
+		colorAttrib := uint32(gl.GetAttribLocation(program, gl.Str("color\x00")))
+		gl.EnableVertexAttribArray(colorAttrib)
+		// Offset 12 to skip the first data (which is vertex data)
+		gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 24, gl.PtrOffset(12))
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
