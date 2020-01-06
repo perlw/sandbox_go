@@ -414,7 +414,7 @@ func main() {
 	gl.ClearDepth(1)
 	gl.DepthFunc(gl.LESS)
 	gl.Viewport(0, 0, width, height)
-	gl.ClearColor(0.5, 0.5, 1.0, 1.0)
+	gl.ClearColor(0.2, 0.2, 0.4, 1.0)
 	// -Setup GL
 
 	// +Setup font
