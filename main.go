@@ -1,9 +1,17 @@
 package main
 
+// void foo(void);
+import "C"
+
 import (
+	"bufio"
 	"fmt"
+	"image"
+	"image/draw"
+	"image/png"
 	"io/ioutil"
 	"math"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -11,6 +19,8 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/golang/freetype"
+	"golang.org/x/image/font"
 )
 
 func init() {
@@ -88,10 +98,7 @@ type Mesh struct {
 	normals []mgl32.Vec3
 }
 
-func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mesh {
-	width := 128
-	height := 192
-
+func generateMesh(width, height int) Mesh {
 	mesh := Mesh{
 		verts:   []mgl32.Vec3{},
 		normals: []mgl32.Vec3{},
@@ -131,11 +138,6 @@ func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mes
 					{origox - 0.0, 0.0, origoy - 0.5},
 					{origox - 0.5, 0.0, origoy + 0.5},
 					{origox + 0.5, 0.0, origoy + 0.5},
-				}
-			}
-			if vertFunc != nil {
-				for i, vert := range rootVerts {
-					rootVerts[i] = vertFunc(float32(x), float32(y), vert)
 				}
 			}
 			rootNormals := []mgl32.Vec3{
@@ -258,15 +260,113 @@ func generateMesh(vertFunc func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3) Mes
 			}...)
 		}
 	}
-	//fmt.Printf("%v\n", baseVerts)
 
 	return mesh
+}
+
+func updateMesh(mesh *Mesh, width, height int, time float64) {
+	for y := 0; y < height; y++ {
+		i := y * width
+		for x := 0; x < width; x++ {
+			// Base height
+			height := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.1)
+			base := (i + x) * 42
+			for v := 0; v < 42; v += 2 {
+				if mesh.verts[base+v][1] > 0.0 {
+					mesh.verts[base+v][1] = height
+
+					// Tweaked height for wave
+					mesh.verts[base+v][1] += float32(math.Sin(float64(mesh.verts[base+v][0]+mesh.verts[base+v][2])+time) * 0.25)
+				}
+			}
+		}
+	}
+	for i := 0; i < len(mesh.normals); i += 21 {
+		normal := calcNormal(mesh.verts[(i*2)+0], mesh.verts[(i*2)+2], mesh.verts[(i*2)+4])
+		// Draw normal
+		/*mesh.verts[(i*2)+1] = normal
+		mesh.verts[(i*2)+3] = normal
+		mesh.verts[(i*2)+5] = normal*/
+		mesh.normals[i+0] = normal
+		mesh.normals[i+1] = normal
+		mesh.normals[i+2] = normal
+	}
 }
 
 const width = 1280
 const height = 720
 
+type Glyph struct {
+	X      int `json:"x"`
+	Y      int `json:"y"`
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
 func main() {
+	C.foo()
+
+	// +Freetype
+	fontBytes, err := ioutil.ReadFile("pragmono.ttf")
+	if err != nil {
+		panic(err)
+	}
+	f, err := freetype.ParseFont(fontBytes)
+	if err != nil {
+		panic(err)
+	}
+	size := 16
+	fg, bg := image.White, image.Black
+	rgba := image.NewRGBA(image.Rect(0, 0, 256, 256))
+	draw.Draw(rgba, rgba.Bounds(), bg, image.ZP, draw.Src)
+	c := freetype.NewContext()
+	c.SetDPI(72)
+	c.SetFont(f)
+	c.SetFontSize(float64(size))
+	c.SetClip(rgba.Bounds())
+	c.SetDst(rgba)
+	c.SetSrc(fg)
+	c.SetHinting(font.HintingNone)
+
+	gw := 8
+	gh := 16
+
+	var gi int
+	var x, y int
+	glyphs := make([]Glyph, 127-32+1)
+	for r := rune(32); r <= 127; r++ {
+		glyphs[gi].X = x
+		glyphs[gi].Y = y - gh
+		glyphs[gi].Width = gw
+		glyphs[gi].Height = gh
+		pt := freetype.Pt(x, y-2)
+		c.DrawString(string(r), pt)
+
+		if gi%32 == 0 {
+			x = 0
+			y += gh
+		} else {
+			x += gw
+		}
+
+		gi++
+	}
+	outFile, err := os.Create("out.png")
+	if err != nil {
+		panic(err)
+	}
+	defer outFile.Close()
+	b := bufio.NewWriter(outFile)
+	err = png.Encode(b, rgba)
+	if err != nil {
+		panic(err)
+	}
+	err = b.Flush()
+	if err != nil {
+		panic(err)
+	}
+	// -Freetype
+
 	// +Setup GLFW
 	if err := glfw.Init(); err != nil {
 		panic(err)
@@ -309,11 +409,68 @@ func main() {
 	gl.Enable(gl.CULL_FACE)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.MULTISAMPLE)
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 	gl.ClearDepth(1)
 	gl.DepthFunc(gl.LESS)
 	gl.Viewport(0, 0, width, height)
 	gl.ClearColor(0.5, 0.5, 1.0, 1.0)
 	// -Setup GL
+
+	// +Setup font
+	var fontTexture uint32
+	var fontProgram uint32
+	gl.GenTextures(1, &fontTexture)
+	gl.BindTexture(gl.TEXTURE_2D, fontTexture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba.Bounds().Dx()), int32(rgba.Bounds().Dy()), 0, gl.RGBA,
+		gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
+
+	{
+		vertSource, err := ioutil.ReadFile("text.vert")
+		if err != nil {
+			panic(err)
+		}
+		fragSource, err := ioutil.ReadFile("text.frag")
+		if err != nil {
+			panic(err)
+		}
+		vertSource[len(vertSource)-1] = 0
+		fragSource[len(fragSource)-1] = 0
+		fontProgram, err = newProgram(string(vertSource), string(fragSource))
+		if err != nil {
+			panic(err)
+		}
+	}
+	gl.UseProgram(fontProgram)
+
+	projection := mgl32.Ortho2D(0, float32(width), 0, float32(height))
+	fmt.Printf("%v\n", projection)
+	projectionUniform := gl.GetUniformLocation(fontProgram, gl.Str("projection\x00"))
+	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
+
+	var textVao, textVbo uint32
+	gl.GenVertexArrays(1, &textVao)
+	gl.BindVertexArray(textVao)
+	gl.GenBuffers(1, &textVbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
+	// sizeof(float)*6(vertices)*4(fields)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*6*4, nil, gl.DYNAMIC_DRAW)
+	{
+		vertAttrib := uint32(gl.GetAttribLocation(fontProgram, gl.Str("vertex\x00")))
+		gl.EnableVertexAttribArray(vertAttrib)
+		// sizeof(float)*4(fields)
+		gl.VertexAttribPointer(vertAttrib, 4, gl.FLOAT, false, 4*4, gl.PtrOffset(0))
+	}
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	gl.BindVertexArray(0)
+
+	gl.UseProgram(0)
+	// -Setup font
 
 	// +Setup shaders
 	vertSource, err := ioutil.ReadFile("simple.vert")
@@ -356,7 +513,9 @@ func main() {
 
 	var vbo uint32
 	var vbo2 uint32
-	baseMesh := generateMesh(nil)
+	meshWidth := 128
+	meshHeight := 192
+	baseMesh := generateMesh(meshWidth, meshHeight)
 	{
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
@@ -379,12 +538,13 @@ func main() {
 		gl.EnableVertexAttribArray(normalAttrib)
 		gl.VertexAttribPointer(normalAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
+	gl.UseProgram(0)
 	// -Setup geom
 
 	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseMesh.verts)/6, len(baseMesh.verts)/2, len(baseMesh.normals))
 
-	waveRebuild := make(chan Mesh)
-	go func(ch chan Mesh) {
+	waveRebuild := make(chan *Mesh)
+	go func(ch chan *Mesh) {
 		tickRate := int64(1000000000) / int64(60000000)
 
 		curr := time.Now().UnixNano()
@@ -394,18 +554,14 @@ func main() {
 				curr = tick
 
 				time := float64(tick) / 1000000000
-				mesh := generateMesh(func(x, y float32, vertex mgl32.Vec3) mgl32.Vec3 {
-					if vertex[1] > 0.0 {
-						// Base height
-						vertex[1] += float32((math.Sin(float64(x)+time) - math.Cos(float64(y)+time)) * 0.1)
-
-						// Tweaked height
-						vertex[1] += float32(math.Sin(float64(vertex[0]+vertex[2])+time) * 0.25)
-					}
-
-					return vertex
-				})
-				ch <- mesh
+				mesh := Mesh{
+					verts:   make([]mgl32.Vec3, len(baseMesh.verts)),
+					normals: make([]mgl32.Vec3, len(baseMesh.normals)),
+				}
+				copy(mesh.verts, baseMesh.verts)
+				copy(mesh.normals, baseMesh.normals)
+				updateMesh(&mesh, meshWidth, meshHeight, time)
+				ch <- &mesh
 			}
 
 			runtime.Gosched()
@@ -413,7 +569,8 @@ func main() {
 	}(waveRebuild)
 
 	var tick float64
-	var frames uint32
+	var frames uint
+	var fps uint
 	for !window.ShouldClose() {
 		time := glfw.GetTime()
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -430,9 +587,48 @@ func main() {
 		}
 
 		// +Draw geom
+		gl.UseProgram(program)
 		gl.BindVertexArray(vao)
 		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseMesh.verts)/2))
 		// -Draw geom
+
+		// +Render text
+		gl.UseProgram(fontProgram)
+		colorUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("textColor\x00")))
+		gl.Uniform3f(colorUniform, 1.0, 0.5, 0.0)
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, fontTexture)
+		gl.BindVertexArray(textVao)
+		fpsString := fmt.Sprintf("FPS: %d", fps)
+		ox := float32(2)
+		oy := float32(720 - 2)
+		vertices := make([]mgl32.Vec4, 0)
+		stepX := float32(1.0 / 32.0)
+		stepY := float32(1.0 / 16.0)
+		sX := float32(8)
+		sY := float32(16)
+		for _, r := range fpsString {
+			offx := float32((r-33)%32) * stepX // - starting rune, mod 32 max characters times texture step
+			offy := float32((r-33)/32) * stepY // - starting rune, div 32 max characters times texture step
+			xpos := ox
+			ypos := oy - sY
+			vertices = append(vertices, []mgl32.Vec4{
+				{xpos, ypos + sY, offx, offy},
+				{xpos, ypos, offx, offy + stepY},
+				{xpos + sX, ypos, offx + stepX, offy + stepY},
+				{xpos, ypos + sY, offx, offy},
+				{xpos + sX, ypos, offx + stepX, offy + stepY},
+				{xpos + sX, ypos + sY, offx + stepX, offy},
+			}...)
+			ox += sX
+		}
+		gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
+		// vertices*3fields*sizeof(float)
+		gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
+		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
+		gl.BindTexture(gl.TEXTURE_2D, 0)
+		// -Render text
 
 		window.SwapBuffers()
 		glfw.PollEvents()
@@ -440,6 +636,7 @@ func main() {
 		frames++
 		if time-tick >= 1.0 {
 			fmt.Printf("FPS: %d\n", frames)
+			fps = frames
 			frames = 0
 			tick = time
 		}
