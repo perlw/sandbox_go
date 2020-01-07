@@ -621,43 +621,61 @@ func main() {
 		// -Draw geom
 
 		// +Render text
-		gl.UseProgram(fontProgram)
-		colorUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("textColor\x00")))
-		gl.Uniform3f(colorUniform, 1.0, 0.5, 0.0)
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, fontTexture)
-		gl.BindVertexArray(textVao)
-
-		fpsString := fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts)
-		ox := float32(2)
-		oy := float32(720 - 2)
-		vertices := make([]mgl32.Vec4, 0)
-		stepX := float32(1.0 / 32.0)
-		stepY := float32(1.0 / 16.0)
-		sX := float32(8)
-		sY := float32(16)
-		for _, r := range fpsString {
-			offx := float32((r-33)%32) * stepX // - starting rune, mod 32 max characters times texture step
-			offy := float32((r-33)/32) * stepY // - starting rune, div 32 max characters times texture step
-			xpos := ox
-			ypos := oy - sY
-			vertices = append(vertices, []mgl32.Vec4{
-				{xpos, ypos + sY, offx, offy},
-				{xpos, ypos, offx, offy + stepY},
-				{xpos + sX, ypos, offx + stepX, offy + stepY},
-				{xpos, ypos + sY, offx, offy},
-				{xpos + sX, ypos, offx + stepX, offy + stepY},
-				{xpos + sX, ypos + sY, offx + stepX, offy},
-			}...)
-			ox += sX
+		type message struct {
+			x, y int
+			str  string
 		}
-
-		gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
-		// vertices*3fields*sizeof(float)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
-		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
-		gl.BindTexture(gl.TEXTURE_2D, 0)
+		renderStrings := func(messages []message) {
+			gl.UseProgram(fontProgram)
+			colorUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("textColor\x00")))
+			gl.Uniform3f(colorUniform, 1.0, 0.5, 0.0)
+			gl.ActiveTexture(gl.TEXTURE0)
+			gl.BindTexture(gl.TEXTURE_2D, fontTexture)
+			gl.BindVertexArray(textVao)
+			vertices := make([]mgl32.Vec4, 0)
+			for _, m := range messages {
+				ox := float32(m.x)
+				oy := float32(720 - m.y)
+				stepX := float32(1.0 / 32.0)
+				stepY := float32(1.0 / 16.0)
+				sX := float32(8)
+				sY := float32(16)
+				for _, r := range m.str {
+					offx := float32((r-33)%32) * stepX // - starting rune, mod 32 max characters times texture step
+					offy := float32((r-33)/32) * stepY // - starting rune, div 32 max characters times texture step
+					xpos := ox
+					ypos := oy - sY
+					vertices = append(vertices, []mgl32.Vec4{
+						{xpos, ypos + sY, offx, offy},
+						{xpos, ypos, offx, offy + stepY},
+						{xpos + sX, ypos, offx + stepX, offy + stepY},
+						{xpos, ypos + sY, offx, offy},
+						{xpos + sX, ypos, offx + stepX, offy + stepY},
+						{xpos + sX, ypos + sY, offx + stepX, offy},
+					}...)
+					ox += sX
+				}
+			}
+			gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
+			// vertices*3fields*sizeof(float)
+			gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
+			gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+			gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
+			gl.BindTexture(gl.TEXTURE_2D, 0)
+		}
+		messages := []message{
+			{
+				x: 2, y: 2,
+				str: fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts),
+			},
+		}
+		for i := 0; i < 20; i++ {
+			messages = append(messages, message{
+				x: 2, y: 20 + (i * 18),
+				str: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent commodo aliquam erat, quis blandit nisi interdum mollis.",
+			})
+		}
+		renderStrings(messages)
 		// -Render text
 
 		window.SwapBuffers()
