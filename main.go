@@ -344,8 +344,9 @@ func main() {
 
 	var gi int
 	var x, y int
-	glyphs := make([]Glyph, 127-32+1)
-	for r := rune(32); r <= 127; r++ {
+	var gstart, gend rune = 32, 255
+	glyphs := make([]Glyph, gend-gstart+1)
+	for r := gstart; r <= gend; r++ {
 		glyphs[gi].X = x
 		glyphs[gi].Y = y - gh
 		glyphs[gi].Width = gw
@@ -668,10 +669,14 @@ func main() {
 				x: 2, y: 2,
 				str: fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts),
 			},
+			{
+				x: 2, y: 20,
+				str: "åäöÅÄÖ€$£#\"\\//[]{}",
+			},
 		}
 		for i := 0; i < 20; i++ {
 			messages = append(messages, message{
-				x: 2, y: 20 + (i * 18),
+				x: 2, y: 38 + (i * 18),
 				str: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent commodo aliquam erat, quis blandit nisi interdum mollis.",
 			})
 		}
