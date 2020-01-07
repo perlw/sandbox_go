@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"io/ioutil"
@@ -379,6 +380,29 @@ func main() {
 	}
 	// -Freetype
 
+	// +Load SDF
+	var sdf *image.Gray
+	{
+		file, err := os.Open("sdf.png")
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+
+		img, err := png.Decode(file)
+		if err != nil {
+			panic(err)
+		}
+
+		sdf = image.NewGray(img.Bounds())
+		for y := 0; y < img.Bounds().Dy(); y++ {
+			for x := 0; x < img.Bounds().Dx(); x++ {
+				sdf.SetGray(x, y, img.At(x, y).(color.Gray))
+			}
+		}
+	}
+	// -Load SDF
+
 	// +Setup GLFW
 	if err := glfw.Init(); err != nil {
 		panic(err)
@@ -438,8 +462,8 @@ func main() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba.Bounds().Dx()), int32(rgba.Bounds().Dy()), 0, gl.RGBA,
-		gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, int32(sdf.Bounds().Dx()), int32(sdf.Bounds().Dy()), 0, gl.RED,
+		gl.UNSIGNED_BYTE, gl.Ptr(sdf.Pix))
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
 	{

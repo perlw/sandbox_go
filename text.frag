@@ -6,6 +6,10 @@ uniform sampler2D text;
 uniform vec3 textColor;
 
 void main() {
-    float sampled = (texture(text, TexCoords).r + texture(text, TexCoords).g + texture(text, TexCoords).b) / 3.0;
-    color = vec4(textColor, sampled);
+    float sampled = texture(text, TexCoords).r;
+    if (sampled >= 0.513) {
+        color = vec4(textColor, 1.0);
+    } else {
+        discard;
+    }
 }
