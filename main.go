@@ -1,8 +1,5 @@
 package main
 
-// void foo(void);
-import "C"
-
 import (
 	"bufio"
 	"fmt"
@@ -21,6 +18,8 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/golang/freetype"
 	"golang.org/x/image/font"
+
+	"github.com/perlw/sandbox_go/foo"
 )
 
 func init() {
@@ -316,7 +315,7 @@ type Glyph struct {
 }
 
 func main() {
-	C.foo()
+	foo.Foo()
 
 	// +Freetype
 	fontBytes, err := ioutil.ReadFile("pragmono.ttf")
