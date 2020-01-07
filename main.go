@@ -281,7 +281,7 @@ func updateMesh(mesh *Mesh, width, height int, time float64, vertOffset, normalO
 		for x := 0; x < width; x++ {
 			// Base height
 			height := 2.0 + float32((math.Sin(float64(x)+time)-math.Cos(float64(y)+time))*0.1)
-			base := (i + x) * 42
+			base := vertOffset + ((i + x) * 42)
 			for v := 0; v < 42; v += 2 {
 				if mesh.verts[base+v][1] > 0.0 {
 					mesh.verts[base+v][1] = height
@@ -293,14 +293,14 @@ func updateMesh(mesh *Mesh, width, height int, time float64, vertOffset, normalO
 		}
 	}
 	for i := 0; i < mesh.numNormals; i += 21 {
-		normal := calcNormal(mesh.verts[(i*2)+0], mesh.verts[(i*2)+2], mesh.verts[(i*2)+4])
+		normal := calcNormal(mesh.verts[vertOffset+(i*2)+0], mesh.verts[vertOffset+(i*2)+2], mesh.verts[vertOffset+(i*2)+4])
 		// Draw normal
 		/*mesh.verts[(i*2)+1] = normal
 		mesh.verts[(i*2)+3] = normal
 		mesh.verts[(i*2)+5] = normal*/
-		mesh.normals[i+0] = normal
-		mesh.normals[i+1] = normal
-		mesh.normals[i+2] = normal
+		mesh.normals[normalOffset+i+0] = normal
+		mesh.normals[normalOffset+i+1] = normal
+		mesh.normals[normalOffset+i+2] = normal
 	}
 }
 
@@ -525,7 +525,7 @@ func main() {
 	var vbo uint32
 	var vbo2 uint32
 	meshWidth := 128
-	meshHeight := 192
+	meshHeight := 196
 	baseMesh := generateMesh(meshWidth, meshHeight)
 	{
 		gl.GenBuffers(1, &vbo)
@@ -558,7 +558,7 @@ func main() {
 		mesh         *Mesh
 		vertOffset   int
 		normalOffset int
-		timing       float64
+		timing       int
 	}
 	waveRebuild := make(chan waveMesh)
 	go func(ch chan waveMesh) {
@@ -585,7 +585,7 @@ func main() {
 					mesh:         &baseMesh,
 					vertOffset:   vertOffset,
 					normalOffset: normalOffset,
-					timing:       float64(time.Now().UnixNano()-tick) / 1000000000,
+					timing:       int(time.Now().UnixNano()-tick) / 1000000,
 				}
 			}
 		}
@@ -594,7 +594,8 @@ func main() {
 	var tick float64
 	var frames uint
 	var fps uint
-	var frameTiming, waveTiming float64
+	var frameTiming, waveTiming int
+	var fts, wts int
 	for !window.ShouldClose() {
 		frameStart := time.Now().UnixNano()
 
@@ -627,7 +628,7 @@ func main() {
 		gl.BindTexture(gl.TEXTURE_2D, fontTexture)
 		gl.BindVertexArray(textVao)
 
-		fpsString := fmt.Sprintf("FPS: %d (%.3f) wave timing: %.3f", fps, frameTiming, waveTiming)
+		fpsString := fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts)
 		ox := float32(2)
 		oy := float32(720 - 2)
 		vertices := make([]mgl32.Vec4, 0)
@@ -662,10 +663,12 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 
-		frameTiming = float64(time.Now().UnixNano()-frameStart) / 1000000000
+		frameTiming = int((time.Now().UnixNano() - frameStart) / 1000000)
 		frames++
 		if currTick-tick >= 1.0 {
 			fps = frames
+			fts = frameTiming
+			wts = waveTiming
 			frames = 0
 			tick = currTick
 		}
