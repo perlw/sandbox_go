@@ -94,8 +94,10 @@ func calcNormal(p1, p2, p3 mgl32.Vec3) mgl32.Vec3 {
 }
 
 type Mesh struct {
-	verts   []mgl32.Vec3
-	normals []mgl32.Vec3
+	verts      []mgl32.Vec3
+	normals    []mgl32.Vec3
+	numVerts   int
+	numNormals int
 }
 
 func generateMesh(width, height int) Mesh {
@@ -260,11 +262,21 @@ func generateMesh(width, height int) Mesh {
 			}...)
 		}
 	}
+	mesh.numVerts = len(mesh.verts)
+	mesh.numNormals = len(mesh.normals)
+
+	verts := make([]mgl32.Vec3, mesh.numVerts*3)
+	copy(verts, mesh.verts)
+	mesh.verts = verts
+
+	normals := make([]mgl32.Vec3, mesh.numNormals*3)
+	copy(normals, mesh.normals)
+	mesh.normals = normals
 
 	return mesh
 }
 
-func updateMesh(mesh *Mesh, width, height int, time float64) {
+func updateMesh(mesh *Mesh, width, height int, time float64, vertOffset, normalOffset int) {
 	for y := 0; y < height; y++ {
 		i := y * width
 		for x := 0; x < width; x++ {
@@ -281,7 +293,7 @@ func updateMesh(mesh *Mesh, width, height int, time float64) {
 			}
 		}
 	}
-	for i := 0; i < len(mesh.normals); i += 21 {
+	for i := 0; i < mesh.numNormals; i += 21 {
 		normal := calcNormal(mesh.verts[(i*2)+0], mesh.verts[(i*2)+2], mesh.verts[(i*2)+4])
 		// Draw normal
 		/*mesh.verts[(i*2)+1] = normal
@@ -519,7 +531,7 @@ func main() {
 	{
 		gl.GenBuffers(1, &vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(baseMesh.verts)*3)*4, gl.Ptr(baseMesh.verts), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (baseMesh.numVerts*3)*4, gl.Ptr(baseMesh.verts), gl.DYNAMIC_DRAW)
 
 		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertex\x00")))
 		gl.EnableVertexAttribArray(vertAttrib)
@@ -532,7 +544,7 @@ func main() {
 
 		gl.GenBuffers(1, &vbo2)
 		gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-		gl.BufferData(gl.ARRAY_BUFFER, (len(baseMesh.normals)*3)*4, gl.Ptr(baseMesh.normals), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, (baseMesh.numNormals*3)*4, gl.Ptr(baseMesh.normals), gl.DYNAMIC_DRAW)
 
 		normalAttrib := uint32(gl.GetAttribLocation(program, gl.Str("normal\x00")))
 		gl.EnableVertexAttribArray(normalAttrib)
@@ -541,55 +553,71 @@ func main() {
 	gl.UseProgram(0)
 	// -Setup geom
 
-	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", len(baseMesh.verts)/6, len(baseMesh.verts)/2, len(baseMesh.normals))
+	fmt.Printf("Polys: %d | Vertices: %d | Normals: %d\n", baseMesh.numVerts/6, baseMesh.numVerts/2, baseMesh.numNormals)
 
-	waveRebuild := make(chan *Mesh)
-	go func(ch chan *Mesh) {
+	type waveMesh struct {
+		mesh         *Mesh
+		vertOffset   int
+		normalOffset int
+		timing       float64
+	}
+	waveRebuild := make(chan waveMesh)
+	go func(ch chan waveMesh) {
 		tickRate := int64(1000000000) / int64(60000000)
 
+		var vertOffset, normalOffset int
 		curr := time.Now().UnixNano()
 		for {
 			tick := time.Now().UnixNano()
 			if tick-curr >= tickRate {
 				curr = tick
 
-				time := float64(tick) / 1000000000
-				mesh := Mesh{
-					verts:   make([]mgl32.Vec3, len(baseMesh.verts)),
-					normals: make([]mgl32.Vec3, len(baseMesh.normals)),
+				timeTick := float64(tick) / 1000000000
+				vertOffset += baseMesh.numVerts
+				normalOffset += baseMesh.numNormals
+				if vertOffset >= len(baseMesh.verts) {
+					vertOffset = 0
 				}
-				copy(mesh.verts, baseMesh.verts)
-				copy(mesh.normals, baseMesh.normals)
-				updateMesh(&mesh, meshWidth, meshHeight, time)
-				ch <- &mesh
+				if normalOffset >= len(baseMesh.normals) {
+					normalOffset = 0
+				}
+				updateMesh(&baseMesh, meshWidth, meshHeight, timeTick, vertOffset, normalOffset)
+				ch <- waveMesh{
+					mesh:         &baseMesh,
+					vertOffset:   vertOffset,
+					normalOffset: normalOffset,
+					timing:       float64(time.Now().UnixNano()-tick) / 1000000000,
+				}
 			}
-
-			runtime.Gosched()
 		}
 	}(waveRebuild)
 
 	var tick float64
 	var frames uint
 	var fps uint
+	var frameTiming, waveTiming float64
 	for !window.ShouldClose() {
-		time := glfw.GetTime()
+		frameStart := time.Now().UnixNano()
+
+		currTick := glfw.GetTime()
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		select {
-		case mesh := <-waveRebuild:
+		case waveMesh := <-waveRebuild:
+			waveTiming = waveMesh.timing
 			gl.BindVertexArray(vao)
 			gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 			// * 3 == 3 vertices, * 4 == size of float32
-			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.verts)*3)*4, gl.Ptr(mesh.verts), gl.DYNAMIC_DRAW)
+			gl.BufferSubData(gl.ARRAY_BUFFER, waveMesh.vertOffset, (waveMesh.mesh.numVerts*3)*4, gl.Ptr(waveMesh.mesh.verts))
 			gl.BindBuffer(gl.ARRAY_BUFFER, vbo2)
-			gl.BufferData(gl.ARRAY_BUFFER, (len(mesh.normals)*3)*4, gl.Ptr(mesh.normals), gl.DYNAMIC_DRAW)
+			gl.BufferSubData(gl.ARRAY_BUFFER, waveMesh.normalOffset, (waveMesh.mesh.numNormals*3)*4, gl.Ptr(waveMesh.mesh.normals))
 		default:
 		}
 
 		// +Draw geom
 		gl.UseProgram(program)
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(baseMesh.verts)/2))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(baseMesh.numVerts/2))
 		// -Draw geom
 
 		// +Render text
@@ -599,7 +627,8 @@ func main() {
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, fontTexture)
 		gl.BindVertexArray(textVao)
-		fpsString := fmt.Sprintf("FPS: %d", fps)
+
+		fpsString := fmt.Sprintf("FPS: %d (%.3f) wave timing: %.3f", fps, frameTiming, waveTiming)
 		ox := float32(2)
 		oy := float32(720 - 2)
 		vertices := make([]mgl32.Vec4, 0)
@@ -622,6 +651,7 @@ func main() {
 			}...)
 			ox += sX
 		}
+
 		gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
 		// vertices*3fields*sizeof(float)
 		gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
@@ -633,12 +663,12 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 
+		frameTiming = float64(time.Now().UnixNano()-frameStart) / 1000000000
 		frames++
-		if time-tick >= 1.0 {
-			fmt.Printf("FPS: %d\n", frames)
+		if currTick-tick >= 1.0 {
 			fps = frames
 			frames = 0
-			tick = time
+			tick = currTick
 		}
 	}
 }
