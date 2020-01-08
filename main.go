@@ -329,7 +329,7 @@ func main() {
 	}
 	size := 16
 	fg, bg := image.White, image.Black
-	rgba := image.NewRGBA(image.Rect(0, 0, 256, 256))
+	rgba := image.NewGray(image.Rect(0, 0, 256, 256))
 	draw.Draw(rgba, rgba.Bounds(), bg, image.ZP, draw.Src)
 	c := freetype.NewContext()
 	c.SetDPI(72)
@@ -363,6 +363,21 @@ func main() {
 		}
 
 		gi++
+	}
+	fontImg := image.NewRGBA(rgba.Bounds())
+	for y := 0; y < rgba.Bounds().Dy(); y++ {
+		for x := 0; x < rgba.Bounds().Dx(); x++ {
+			curr := rgba.At(x, y).(color.Gray)
+			fontImg.Set(x, y, color.RGBA{R: 255, G: 255, B: 255, A: curr.Y})
+			if x == 0 || y == 0 {
+				continue
+			}
+
+			prev := rgba.At(x-1, y-1).(color.Gray)
+			if prev.Y >= 128 && curr.Y < 128 {
+				fontImg.Set(x, y, color.RGBA{R: 0, G: 0, B: 0, A: 255})
+			}
+		}
 	}
 	outFile, err := os.Create("out.png")
 	if err != nil {
@@ -470,8 +485,8 @@ func main() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, int32(sdf.Bounds().Dx()), int32(sdf.Bounds().Dy()), 0, gl.RED,
-		gl.UNSIGNED_BYTE, gl.Ptr(sdf.Pix))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(fontImg.Bounds().Dx()), int32(fontImg.Bounds().Dy()), 0, gl.RGBA,
+		gl.UNSIGNED_BYTE, gl.Ptr(fontImg.Pix))
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
 	{
@@ -496,11 +511,13 @@ func main() {
 	fmt.Printf("%v\n", projection)
 	projectionUniform := gl.GetUniformLocation(fontProgram, gl.Str("projection\x00"))
 	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
+	/* SDF Shader
 	minUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("minBound\x00")))
 	gl.Uniform1i(minUniform, int32(minBound))
 	maxUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("maxBound\x00")))
 	gl.Uniform1i(maxUniform, int32(maxBound))
 	fmt.Printf("Sending bounds %d->%d to shader\n", minBound, maxBound)
+	*/
 
 	var textVao, textVbo uint32
 	gl.GenVertexArrays(1, &textVao)
