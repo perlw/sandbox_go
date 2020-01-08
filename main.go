@@ -382,6 +382,7 @@ func main() {
 
 	// +Load SDF
 	var sdf *image.Gray
+	minBound, maxBound := 256, 0
 	{
 		file, err := os.Open("sdf.png")
 		if err != nil {
@@ -397,7 +398,14 @@ func main() {
 		sdf = image.NewGray(img.Bounds())
 		for y := 0; y < img.Bounds().Dy(); y++ {
 			for x := 0; x < img.Bounds().Dx(); x++ {
-				sdf.SetGray(x, y, img.At(x, y).(color.Gray))
+				c := img.At(x, y).(color.Gray)
+				if int(c.Y) < minBound {
+					minBound = int(c.Y)
+				}
+				if int(c.Y) > maxBound {
+					maxBound = int(c.Y)
+				}
+				sdf.SetGray(x, y, c)
 			}
 		}
 	}
@@ -488,6 +496,11 @@ func main() {
 	fmt.Printf("%v\n", projection)
 	projectionUniform := gl.GetUniformLocation(fontProgram, gl.Str("projection\x00"))
 	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
+	minUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("minBound\x00")))
+	gl.Uniform1i(minUniform, int32(minBound))
+	maxUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("maxBound\x00")))
+	gl.Uniform1i(maxUniform, int32(maxBound))
+	fmt.Printf("Sending bounds %d->%d to shader\n", minBound, maxBound)
 
 	var textVao, textVbo uint32
 	gl.GenVertexArrays(1, &textVao)
