@@ -366,7 +366,7 @@ func main() {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.Samples, 4)
+	glfw.WindowHint(glfw.Samples, glfw.DontCare)
 
 	window, err := glfw.CreateWindow(width, height, "Testing", nil, nil)
 	if err != nil {
