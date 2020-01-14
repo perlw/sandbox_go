@@ -305,13 +305,6 @@ func updateMesh(mesh *Mesh, width, height int, time float64, vertOffset, normalO
 const width = 1280
 const height = 720
 
-type Glyph struct {
-	X      int `json:"x"`
-	Y      int `json:"y"`
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
 func main() {
 	foo.Foo()
 
