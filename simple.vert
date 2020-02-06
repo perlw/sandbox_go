@@ -42,5 +42,12 @@ void main() {
 		fcolor = (color / 4) * (vert.y / 2.0);
 	}
 
-	gl_Position = pMatrix * mvMatrix * vec4(vert.xyz, 1.0);
+	float x = gl_InstanceID % 18;
+	float z = gl_InstanceID / 18;
+	x *= 7.7;
+	if (int(z) % 2 != 0) {
+		x -= 0.5;
+	}
+	vec4 instancePos = vec4(vert.x + x, vert.y, vert.z - z, 1.0);
+	gl_Position = pMatrix * mvMatrix * instancePos;
 }

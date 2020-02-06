@@ -408,7 +408,6 @@ func main() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(fontmap.Image.Bounds().Dx()), int32(fontmap.Image.Bounds().Dy()), 0,
 		gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(fontmap.Image.Pix))
-	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
 	{
 		vertSource, err := ioutil.ReadFile("text.vert")
@@ -500,8 +499,8 @@ func main() {
 
 	var vbo uint32
 	var vbo2 uint32
-	meshWidth := 128
-	meshHeight := 196
+	meshWidth := 7
+	meshHeight := 2
 	baseMesh := generateMesh(meshWidth, meshHeight)
 	{
 		gl.GenBuffers(1, &vbo)
@@ -593,7 +592,7 @@ func main() {
 		// +Draw geom
 		gl.UseProgram(program)
 		gl.BindVertexArray(vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(baseMesh.numVerts/2))
+		gl.DrawArraysInstanced(gl.TRIANGLES, 0, int32(baseMesh.numVerts/2), 2048)
 		// -Draw geom
 
 		// +Render text
