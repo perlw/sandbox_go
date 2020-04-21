@@ -302,8 +302,8 @@ func updateMesh(mesh *Mesh, width, height int, time float64, vertOffset, normalO
 	}
 }
 
-const width = 1280
-const height = 720
+const width = 1920
+const height = 1080
 
 func main() {
 	foo.Foo()
@@ -537,15 +537,13 @@ func main() {
 	}
 	waveRebuild := make(chan waveMesh)
 	go func(ch chan waveMesh) {
-		tickRate := int64(1000000000) / int64(60000000)
+		tickRate := (int64(1000000000) / int64(60000000)) * 1000000
 
 		var vertOffset, normalOffset int
 		curr := time.Now().UnixNano()
 		for {
 			tick := time.Now().UnixNano()
 			if tick-curr >= tickRate {
-				curr = tick
-
 				timeTick := float64(tick) / 1000000000
 				vertOffset += baseMesh.numVerts
 				normalOffset += baseMesh.numNormals
@@ -560,8 +558,9 @@ func main() {
 					mesh:         &baseMesh,
 					vertOffset:   vertOffset,
 					normalOffset: normalOffset,
-					timing:       int(time.Now().UnixNano()-tick) / 1000000,
+					timing:       int(time.Now().UnixNano()-curr) / 1000000,
 				}
+				curr = tick
 			}
 		}
 	}(waveRebuild)
@@ -571,11 +570,12 @@ func main() {
 	var fps uint
 	var frameTiming, waveTiming int
 	var fts, wts int
+	//frameTickRate := (int64(1000000000) / int64(60000000)) * 1000000
+	var frameTickRate int64
+	currFrameTick := time.Now().UnixNano()
 	for !window.ShouldClose() {
-		frameStart := time.Now().UnixNano()
-
+		frameTick := time.Now().UnixNano()
 		currTick := glfw.GetTime()
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		select {
 		case waveMesh := <-waveRebuild:
@@ -589,79 +589,83 @@ func main() {
 		default:
 		}
 
-		// +Draw geom
-		gl.UseProgram(program)
-		gl.BindVertexArray(vao)
-		gl.DrawArraysInstanced(gl.TRIANGLES, 0, int32(baseMesh.numVerts/2), 2048)
-		// -Draw geom
+		if frameTick-currFrameTick >= frameTickRate {
+			frameStart := time.Now().UnixNano()
+			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// +Render text
-		type message struct {
-			x, y int
-			str  string
-		}
-		renderStrings := func(messages []message) {
-			gl.UseProgram(fontProgram)
-			colorUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("textColor\x00")))
-			gl.Uniform3f(colorUniform, 1.0, 0.5, 0.0)
-			gl.ActiveTexture(gl.TEXTURE0)
-			gl.BindTexture(gl.TEXTURE_2D, fontTexture)
-			gl.BindVertexArray(textVao)
-			vertices := make([]mgl32.Vec4, 0)
-			for _, m := range messages {
-				ox := float32(m.x)
-				oy := float32(720 - m.y)
-				stepX := float32(1.0 / 32.0)
-				stepY := float32(1.0 / 16.0)
-				sX := float32(8)
-				sY := float32(16)
-				for _, r := range m.str {
-					offx := float32((r-33)%32) * stepX // - starting rune, mod 32 max characters times texture step
-					offy := float32((r-33)/32) * stepY // - starting rune, div 32 max characters times texture step
-					xpos := ox
-					ypos := oy - sY
-					vertices = append(vertices, []mgl32.Vec4{
-						{xpos, ypos + sY, offx, offy},
-						{xpos, ypos, offx, offy + stepY},
-						{xpos + sX, ypos, offx + stepX, offy + stepY},
-						{xpos, ypos + sY, offx, offy},
-						{xpos + sX, ypos, offx + stepX, offy + stepY},
-						{xpos + sX, ypos + sY, offx + stepX, offy},
-					}...)
-					ox += sX
-				}
+			// +Draw geom
+			gl.UseProgram(program)
+			gl.BindVertexArray(vao)
+			gl.DrawArraysInstanced(gl.TRIANGLES, 0, int32(baseMesh.numVerts/2), 2048)
+			// -Draw geom
+
+			// +Render text
+			type message struct {
+				x, y int
+				str  string
 			}
-			gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
-			// vertices*3fields*sizeof(float)
-			gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
-			gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-			gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
-			gl.BindTexture(gl.TEXTURE_2D, 0)
+			renderStrings := func(messages []message) {
+				gl.UseProgram(fontProgram)
+				colorUniform := int32(gl.GetUniformLocation(fontProgram, gl.Str("textColor\x00")))
+				gl.Uniform3f(colorUniform, 1.0, 0.5, 0.0)
+				gl.ActiveTexture(gl.TEXTURE0)
+				gl.BindTexture(gl.TEXTURE_2D, fontTexture)
+				gl.BindVertexArray(textVao)
+				vertices := make([]mgl32.Vec4, 0)
+				for _, m := range messages {
+					ox := float32(m.x)
+					oy := float32(720 - m.y)
+					stepX := float32(1.0 / 32.0)
+					stepY := float32(1.0 / 16.0)
+					sX := float32(8)
+					sY := float32(16)
+					for _, r := range m.str {
+						offx := float32((r-33)%32) * stepX // - starting rune, mod 32 max characters times texture step
+						offy := float32((r-33)/32) * stepY // - starting rune, div 32 max characters times texture step
+						xpos := ox
+						ypos := oy - sY
+						vertices = append(vertices, []mgl32.Vec4{
+							{xpos, ypos + sY, offx, offy},
+							{xpos, ypos, offx, offy + stepY},
+							{xpos + sX, ypos, offx + stepX, offy + stepY},
+							{xpos, ypos + sY, offx, offy},
+							{xpos + sX, ypos, offx + stepX, offy + stepY},
+							{xpos + sX, ypos + sY, offx + stepX, offy},
+						}...)
+						ox += sX
+					}
+				}
+				gl.BindBuffer(gl.ARRAY_BUFFER, textVbo)
+				// vertices*3fields*sizeof(float)
+				gl.BufferData(gl.ARRAY_BUFFER, (len(vertices)*4)*4, gl.Ptr(vertices[:]), gl.DYNAMIC_DRAW)
+				gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+				gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
+				gl.BindTexture(gl.TEXTURE_2D, 0)
+			}
+			messages := []message{
+				{
+					x: 2, y: 2,
+					str: fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts),
+				},
+				{
+					x: 2, y: 20,
+					str: "åäöÅÄÖ€$£#\"\\//[]{}",
+				},
+			}
+			for i := 0; i < 20; i++ {
+				messages = append(messages, message{
+					x: 2, y: 38 + (i * 18),
+					str: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent commodo aliquam erat, quis blandit nisi interdum mollis.",
+				})
+			}
+			renderStrings(messages)
+			// -Render text
+			window.SwapBuffers()
+			frames++
+			frameTiming = int((time.Now().UnixNano() - frameStart) / 1000000)
+			currFrameTick = frameTick
 		}
-		messages := []message{
-			{
-				x: 2, y: 2,
-				str: fmt.Sprintf("FPS: %d (%dms) wave timing: %dms", fps, fts, wts),
-			},
-			{
-				x: 2, y: 20,
-				str: "åäöÅÄÖ€$£#\"\\//[]{}",
-			},
-		}
-		for i := 0; i < 20; i++ {
-			messages = append(messages, message{
-				x: 2, y: 38 + (i * 18),
-				str: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent commodo aliquam erat, quis blandit nisi interdum mollis.",
-			})
-		}
-		renderStrings(messages)
-		// -Render text
 
-		window.SwapBuffers()
-		glfw.PollEvents()
-
-		frameTiming = int((time.Now().UnixNano() - frameStart) / 1000000)
-		frames++
 		if currTick-tick >= 1.0 {
 			fps = frames
 			fts = frameTiming
@@ -669,5 +673,6 @@ func main() {
 			frames = 0
 			tick = currTick
 		}
+		glfw.PollEvents()
 	}
 }
